@@ -61,3 +61,58 @@ def test_deleting_member_deletes_their_malmoa_data(real_client):
 
         assert db.execute(text("select count(*) from jobs")).scalar() == 0
         assert db.execute(text("select count(*) from people")).scalar() == 0
+
+
+# ── 말모아 사용 승인 (통합 단계 5-1, 결정 A: OWNER 또는 MASTER) ──
+
+MALMOA_PATHS = ("/api/jobs", "/api/people", "/api/settings/llm", "/api/usage")
+
+
+def test_signup_default_viewer_is_not_approved(real_client):
+    """가입 기본 역할(VIEWER)만 있으면 말모아 API 는 403 MALMOA_NOT_APPROVED"""
+    viewer = register(real_client, roles=("VIEWER",))
+    for path in MALMOA_PATHS:
+        res = real_client.get(path, headers=bearer(viewer))
+        assert res.status_code == 403, path
+        assert res.json()["code"] == "MALMOA_NOT_APPROVED"
+    assert real_client.post("/api/jobs", files={"file": AUDIO}, headers=bearer(viewer)).status_code == 403
+
+
+def test_member_without_roles_is_not_approved(real_client):
+    nobody = register(real_client, roles=())
+    assert real_client.get("/api/jobs", headers=bearer(nobody)).status_code == 403
+
+
+def test_owner_and_master_are_approved(real_client):
+    for roles in (("OWNER",), ("MASTER",), ("VIEWER", "OWNER"), ("WRITER", "MASTER")):
+        member = register(real_client, roles=roles)
+        assert real_client.get("/api/jobs", headers=bearer(member)).status_code == 200, roles
+
+
+def test_writer_alone_is_not_approved(real_client):
+    """승인 역할은 OWNER 하나 (결정 A) — WRITER 만으로는 안 된다"""
+    writer = register(real_client, roles=("WRITER",))
+    assert real_client.get("/api/jobs", headers=bearer(writer)).status_code == 403
+
+
+def test_granting_and_revoking_owner_applies_at_once(real_client):
+    """관리자가 역할을 주거나 빼면 다음 요청부터 바로 반영된다 (요청마다 meerkit 이 회원을 다시 읽음)"""
+    from app.users import repository as users_repository
+
+    member = register(real_client, roles=("VIEWER",))
+    assert real_client.get("/api/jobs", headers=bearer(member)).status_code == 403
+    with Session(engine) as db:
+        user = db.get(User, int(member))
+        user.roles = users_repository.get_roles_by_codes(db, ["VIEWER", "OWNER"])
+        db.commit()
+    assert real_client.get("/api/jobs", headers=bearer(member)).status_code == 200
+    with Session(engine) as db:
+        user = db.get(User, int(member))
+        user.roles = users_repository.get_roles_by_codes(db, ["VIEWER"])
+        db.commit()
+    assert real_client.get("/api/jobs", headers=bearer(member)).status_code == 403
+
+
+def test_health_stays_public_for_unapproved(real_client):
+    viewer = register(real_client, roles=("VIEWER",))
+    assert real_client.get("/api/health", headers=bearer(viewer)).status_code == 200

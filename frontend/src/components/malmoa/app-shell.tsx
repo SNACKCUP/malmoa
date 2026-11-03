@@ -13,6 +13,7 @@ import { useAuthStore } from '@/meerkit/auth/store'
 import { useRecorderBusy } from '@/stores/malmoa/recorderBusy'
 import { Brand } from './common'
 import { LoginScreen, SessionLostOverlay } from './login-screen'
+import { PendingApproval, isMalmoaApproved } from './pending-approval'
 import { RecorderProvider, useRecorderContext } from './recorder-context'
 import { ReminderToasts } from './reminder-toasts'
 import { NextEventBadge, useNextEvent } from './next-event'
@@ -157,13 +158,15 @@ function useClearDataOnSignOut() {
  */
 export function AppShell({ children }: { children: ReactNode }) {
   use(browser('녹음기 설정이 브라우저 저장소에 있어 서버에서 그릴 수 없습니다.'))
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const recorderBusy = useRecorderBusy((s) => s.busy)
   useClearDataOnSignOut()
 
   if (!recorderBusy) {
     if (isLoading) return <ShellFallback message="로그인 확인 중…" />
     if (!isAuthenticated) return <LoginScreen />
+    // 관리자가 사용 승인(OWNER)을 주기 전 (통합 단계 5-1). 서버도 403 MALMOA_NOT_APPROVED 로 막는다
+    if (user && !isMalmoaApproved(user)) return <PendingApproval user={user} />
   }
   return (
     <RecorderProvider>

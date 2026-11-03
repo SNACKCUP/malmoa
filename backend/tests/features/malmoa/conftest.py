@@ -72,6 +72,7 @@ from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import engine, get_db
 from app.features.malmoa.deps import get_current_user
 from app.features.malmoa.services.file_store import get_store
+from app.users import repository as users_repository
 from app.users.models import User
 
 get_settings.cache_clear()
@@ -98,9 +99,10 @@ DEFAULT_LOGIN_ID = "malmoa-default"  # 헤더 없는 요청의 회원
 _login_ids = (f"malmoa-{n}" for n in itertools.count(1000))  # register() 가 만드는 회원
 
 
-def _make_user(db: Session, login_id: str) -> User:
-    """테스트용 meerkit 회원 (비밀번호 로그인은 쓰지 않는다)"""
+def _make_user(db: Session, login_id: str, roles: tuple[str, ...] = ("OWNER",)) -> User:
+    """테스트용 meerkit 회원 (비밀번호 로그인은 쓰지 않는다). 기본은 말모아 사용 승인(OWNER) 회원"""
     user = User(login_id=login_id, email=f"{login_id}@example.com", hashed_password="!test", name="테스트")
+    user.roles = users_repository.get_roles_by_codes(db, list(roles))
     db.add(user)
     db.commit()
     return user
@@ -180,10 +182,10 @@ def calendar(monkeypatch):
     yield fake
 
 
-def register(client: TestClient, email: str = "me@example.com") -> str:
-    """테스트용 회원을 DB에 바로 만들고 번호를 돌려준다 (email 은 예전 호출과의 호환용, 쓰지 않음)"""
+def register(client: TestClient, email: str = "me@example.com", roles: tuple[str, ...] = ("OWNER",)) -> str:
+    """테스트용 회원을 DB에 바로 만들고 번호를 돌려준다 (email 은 예전 호출과의 호환용, 쓰지 않음). 기본은 승인(OWNER) 회원"""
     with Session(engine) as db:
-        return str(_make_user(db, next(_login_ids)).id)
+        return str(_make_user(db, next(_login_ids), roles).id)
 
 
 def auth(user_id: str) -> dict:

@@ -5,6 +5,7 @@
 - 기준 주소: `http://localhost:8010`. 실행 중이면 `http://localhost:8010/docs`에서 자동 문서(OpenAPI) 확인 가능
 - JSON 필드는 **camelCase** (`CamelModel`, 서버 내부는 snake_case)
 - 오류 응답은 항상 `{"detail": "한국어 메시지"}`. 요청 검증 실패도 422 + 같은 형식
+- 사용 승인 (2026-11-03 통합 단계 5-1): 로그인했어도 역할에 **OWNER 또는 MASTER**가 없으면 말모아 API 는 모두 **403** `{"code": "MALMOA_NOT_APPROVED", "detail": "관리자의 사용 승인을 기다리고 있습니다. …"}` (`/api/health` 제외). 가입 기본 역할 VIEWER 는 승인 전. 역할은 관리자가 회원 관리에서 준다 (`app/features/malmoa/deps.py`).
 - 로그인 (2026-11-03): `/api/health` 외 모든 요청에 `Authorization: Bearer <meerkit 액세스 토큰>`이 필요하다. 없거나 틀리거나 만료면 401(`WWW-Authenticate: Bearer`). 말모아 백엔드에는 `/api/auth/*`가 없다 — 로그인·토큰 갱신은 브라우저의 `/api/*`(Next.js가 meerkit 백엔드로 넘김)
 - 작업 ID 형식은 `moa-<UUID>` (예: `moa-79f7e21d-94af-49a0-96a0-60191aa35449`, 2026-11-02부터). 다른 사용자의 작업이나 이 형식이 아닌 `job_id`(예전 UUID만 있는 ID 포함)는 **404** (존재 여부를 숨김)
 
