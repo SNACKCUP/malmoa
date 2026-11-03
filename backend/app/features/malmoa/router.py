@@ -27,7 +27,7 @@ from app.features.malmoa.api.jobs import cleanup_uploads
 from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import engine
 from app.features.malmoa.schemas.jobs import ErrorResponse, Health
-from app.features.malmoa.services import reminders
+from app.features.malmoa.services import reminders, withdrawal
 from app.features.malmoa.services.file_store import get_store
 from app.features.malmoa.services.transcriber import ffmpeg_exe
 from app.features.malmoa.services.worker import Worker
@@ -71,12 +71,15 @@ async def lifespan(app: FastAPI):
     app.state.worker = worker
     # 일정 알람 검사기 (REMINDERS_ENABLED=false 면 끔)
     reminder_task = asyncio.create_task(reminders.run_forever()) if settings.reminders_enabled else None
+    # 탈퇴 30일 지난 회원의 말모아 데이터 정리 (WITHDRAWN_CLEANUP_ENABLED=false 면 끔)
+    purge_task = asyncio.create_task(withdrawal.run_forever()) if settings.withdrawn_cleanup_enabled else None
     yield
     worker.stop()
-    if reminder_task:
-        reminder_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await reminder_task
+    for task in (reminder_task, purge_task):
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 router = APIRouter(lifespan=lifespan)

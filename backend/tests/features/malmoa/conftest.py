@@ -24,6 +24,7 @@ os.environ["SECRET_KEY"] = "test-secret-not-for-production-0123456789"
 os.environ["OPENAI_API_KEY"] = ""
 # 테스트 중 알람 검사기·실제 Mac 알림을 띄우지 않는다 (검사기는 tick()을 직접 불러 시험)
 os.environ["REMINDERS_ENABLED"] = "false"
+os.environ["WITHDRAWN_CLEANUP_ENABLED"] = "false"  # 탈퇴 정리는 시험이 직접 부른다 (test_withdrawal.py)
 os.environ["MAC_NOTIFICATIONS"] = "false"
 # 작업자는 켠다 — 개발 .env 는 전환 전까지 WORKER_TASKS=[] 이다 (통합계획 단계 2). 테스트가 .env 에 따라 달라지지 않게 여기서 정한다
 os.environ["WORKER_TASKS"] = '["transcribe", "minutes"]'

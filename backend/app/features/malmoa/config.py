@@ -56,6 +56,9 @@ class Settings(BaseSettings):
 
     # 일정 알람: 30초마다 확인해 Mac 알림 센터와 화면에 알린다 (테스트에서는 끈다)
     reminders_enabled: bool = True
+    # 탈퇴 회원의 말모아 데이터(녹음·원문·회의록 등)를 탈퇴 몇 일 뒤 지울지 (통합 단계 5-7, 결정 B). 개인정보 처리방침과 같아야 한다
+    withdrawn_data_days: int = 30
+    withdrawn_cleanup_enabled: bool = True  # 끄면 서버가 정리하지 않는다 (시험·점검용)
     mac_notifications: bool = True
     # 알림 문구의 시각을 이 시간대로 쓴다 (배포 서버는 보통 UTC 라서 서버 시간대를 쓰지 않는다)
     app_timezone: str = "Asia/Seoul"
