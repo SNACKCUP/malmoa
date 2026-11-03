@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "../meerkit/styles/tokens.css";
+/* 말모아 (2026-11-03 통합): 대화상자 애니메이션(tw-animate-css)과 98 OS 스타일. 98 색은 말모아 화면 안에서만 켜진다 */
+@import "tw-animate-css";
+@import "../components/malmoa/malmoa.css";
 
 /* Tailwind의 dark: 변형을 <html data-theme="dark"> 기준으로 쓴다 */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
