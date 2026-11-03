@@ -46,6 +46,8 @@ export interface MeerkitUserConfig {
   theme?: ThemeMode;
   /** false면 Meerkit의 모든 진입·전환 애니메이션을 끈다. */
   motion?: boolean;
+  /** false면 화면 오른쪽 아래의 다크 모드 버튼을 그리지 않는다. 기본 true */
+  themeToggle?: boolean;
   signup?: {
     /** 비밀번호 확인 입력을 추가한다. 서버로는 보내지 않는다. */
     passwordConfirm?: boolean;

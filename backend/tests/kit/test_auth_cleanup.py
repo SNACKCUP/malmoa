@@ -57,5 +57,5 @@ def test_removes_old_email_verifications(db):
 def test_main_dry_run_exit_code(monkeypatch):
     from app.auth import cleanup as module
 
-    monkeypatch.setattr(module, "cleanup", lambda db, dry_run=False: {"reset_tokens": 0, "email_verifications": 0})
+    monkeypatch.setattr(module, "cleanup", lambda db, dry_run=False: {"reset_tokens": 0, "email_verifications": 0, "refresh_tokens": 0, "login_id_mails": 0})
     assert module.main(["--dry-run"]) == 0

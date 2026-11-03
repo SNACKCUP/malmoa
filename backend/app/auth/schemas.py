@@ -134,6 +134,13 @@ class TermRead(BaseModel):
     required: bool = Field(validation_alias="is_required", description="true면 동의해야 가입 가능", examples=[True])
 
 
+class ForgotIdRequest(BaseModel):
+    """아이디 찾기 메일 요청. 가입 여부와 상관없이 같은 응답을 줍니다 (가입 여부를 알려 주지 않음)."""
+
+    # 형식이 틀려도 같은 응답을 주려고 EmailStr로 검사하지 않습니다
+    email: str = Field(max_length=255, description="가입한 이메일", examples=["kim@example.com"])
+
+
 class ForgotPasswordRequest(BaseModel):
     """비밀번호 재설정 메일 요청. 가입 여부와 상관없이 같은 응답을 줍니다 (가입 여부를 알려 주지 않음)."""
 

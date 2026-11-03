@@ -7,42 +7,52 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { errorMessage } from "../api/error";
+import { ApiKeyInput } from "../ai/ApiKeyInput";
 import { meerkitConfig } from "../config";
-import { ChangePasswordForm } from "./components/ChangePasswordForm";
-import { NicknameForm } from "./components/NicknameForm";
-import { ProfileForm } from "./components/ProfileForm";
-import { ProfileImageField } from "./components/ProfileImageField";
 import { RoleBadges } from "./components/RoleBadges";
 import { displayName } from "./components/UserAvatar";
-import { WithdrawForm } from "./components/WithdrawForm";
 import { RequireAuth } from "./guards/RequireAuth";
 import { useAuth } from "./hooks";
-import { useChangePassword, useRemoveAvatar, useSendEmailCode, useUpdateNickname, useUpdateProfile, useUploadAvatar, useVerifyEmailCode, useWithdraw } from "./mutations";
+import {
+  MeAvatarField,
+  MeNicknameForm,
+  MePasswordForm,
+  MeProfileForm,
+  MeWithdrawForm,
+} from "./MeSections";
+
+export interface MePageTab {
+  value: string;
+  label: string;
+  content: React.ReactNode;
+}
+
+export interface MePageProps {
+  /** 화면 제목. 기본은 "내 정보" */
+  title?: string;
+  /** 기본 탭(프로필 수정, 비밀번호 변경, 탈퇴) 앞에 끼울 탭. 서비스 고유 설정을 넣는다 */
+  extraTabs?: MePageTab[];
+  /** 이미 <main> 안에 그려질 때 true. 바깥 <main>을 <div>로 바꾼다 */
+  embedded?: boolean;
+  /** AI 서비스용 "API 키" 탭을 보일지. 기본 true. AI를 쓰지 않는 서비스는 false */
+  apiKey?: boolean;
+}
 
 const date = (iso: string) => iso.slice(0, 10);
 
-// 부품이 보여 줄 수 있게 서버 오류를 문구가 담긴 Error로 바꿔 다시 던진다
-const rethrow = (e: unknown): never => {
-  throw new Error(errorMessage(e) ?? "이미지를 처리하지 못했습니다.");
-};
-
-function MeContent() {
+function MeContent({
+  title = "내 정보",
+  extraTabs = [],
+  embedded = false,
+  apiKey = true,
+}: MePageProps) {
   const { user } = useAuth();
-  const update = useUpdateProfile();
-  const change = useChangePassword();
-  const nick = useUpdateNickname();
-  const withdraw = useWithdraw();
-  const sendCode = useSendEmailCode();
-  const verifyCode = useVerifyEmailCode();
-  const upload = useUploadAvatar();
-  const removeAvatar = useRemoveAvatar();
   const router = useRouter();
   if (!user) return null;
-  const nicknameOn = meerkitConfig.signup.optionalFields.includes("nickname");
 
+  const Root = embedded ? "div" : "main";
   return (
-    <main className="mk-rise mx-auto max-w-xl px-4 py-12">
+    <Root className="mk-rise mx-auto max-w-xl px-4 py-12">
       <div className="mb-6 flex items-center gap-3">
         <Button
           type="button"
@@ -51,85 +61,83 @@ function MeContent() {
           className="rounded-full"
           aria-label="뒤로 가기"
           // 이전 화면이 없으면(주소를 직접 열었으면) 처음 화면으로 간다
-          onClick={() => (window.history.length > 1 ? router.back() : router.push(meerkitConfig.routes.home))}
+          onClick={() =>
+            window.history.length > 1
+              ? router.back()
+              : router.push(meerkitConfig.routes.home)
+          }
         >
           <ArrowLeft />
         </Button>
-        <h1 className="text-3xl font-semibold tracking-tight">내 정보</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
       </div>
       <Card className="mb-4">
-        <CardContent className="grid gap-5">
-          <ProfileImageField user={user} onUpload={(file) => upload.mutateAsync(file).catch(rethrow)} onRemove={() => removeAvatar.mutateAsync().catch(rethrow)} />
-          <div className="min-w-0">
-            <p className="truncate text-xl font-semibold">{displayName(user)}</p>
-            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-            <div className="mt-2 flex items-center gap-2">
+        <CardContent className="flex flex-col gap-5 sm:flex-row sm:gap-7">
+          <MeAvatarField showHint={false} />
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <p className="truncate text-xl font-semibold">
+              {displayName(user)}
+            </p>
+            <p className="truncate text-sm text-muted-foreground">
+              {user.email}
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <RoleBadges roles={user.roles} />
-              <span className="text-xs text-muted-foreground">가입일 {date(user.created_at)}</span>
+              <span className="text-xs text-muted-foreground">
+                가입일 {date(user.created_at)}
+              </span>
             </div>
           </div>
         </CardContent>
-        {nicknameOn && (
-          <CardContent className="mt-5 border-t pt-5">
-            <NicknameForm
-              key={user.nickname ?? ""}
-              user={user}
-              onSubmit={(nickname) => nick.mutateAsync(nickname)}
-              pending={nick.isPending}
-              error={errorMessage(nick.error)}
-              generator={meerkitConfig.signup.nickname.generator}
-            />
-          </CardContent>
-        )}
+        <CardContent className="mt-5 border-t pt-5 empty:hidden">
+          <MeNicknameForm />
+        </CardContent>
       </Card>
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue={extraTabs[0]?.value ?? "profile"}>
         <TabsList>
+          {extraTabs.map((x) => (
+            <TabsTrigger key={x.value} value={x.value}>
+              {x.label}
+            </TabsTrigger>
+          ))}
           <TabsTrigger value="profile">프로필 수정</TabsTrigger>
           <TabsTrigger value="password">비밀번호 변경</TabsTrigger>
+          {apiKey && <TabsTrigger value="apikey">API 키</TabsTrigger>}
           <TabsTrigger value="withdraw">탈퇴</TabsTrigger>
         </TabsList>
         <Card className="mt-3">
           <CardContent>
+            {extraTabs.map((x) => (
+              <TabsContent key={x.value} value={x.value} className="mk-swap">
+                {x.content}
+              </TabsContent>
+            ))}
             <TabsContent value="profile" className="mk-swap">
-              <ProfileForm
-                key={user.updated_at}
-                user={user}
-                onSubmit={update.mutate}
-                pending={update.isPending}
-                error={errorMessage(update.error)}
-                optionalFields={meerkitConfig.signup.optionalFields.filter((f) => f !== "nickname")}
-                addressType={meerkitConfig.signup.addressType}
-                nameRange={meerkitConfig.signup.name}
-                phoneInput={meerkitConfig.signup.phoneInput}
-                addressSearch={meerkitConfig.signup.addressSearch}
-                emailVerification={
-                  meerkitConfig.signup.emailVerification
-                    ? {
-                        sendCode: (email) => sendCode.mutateAsync({ email }),
-                        verifyCode: async (email, code) => (await verifyCode.mutateAsync({ email, code })).token,
-                      }
-                    : undefined
-                }
-              />
+              <MeProfileForm />
             </TabsContent>
             <TabsContent value="password" className="mk-swap">
-              <ChangePasswordForm onSubmit={change.mutate} pending={change.isPending} error={errorMessage(change.error)} />
+              <MePasswordForm />
             </TabsContent>
+            {apiKey && (
+              <TabsContent value="apikey" className="mk-swap">
+                <ApiKeyInput showModel />
+              </TabsContent>
+            )}
             <TabsContent value="withdraw" className="mk-swap">
-              <WithdrawForm onSubmit={withdraw.mutate} pending={withdraw.isPending} error={errorMessage(withdraw.error)} />
+              <MeWithdrawForm />
             </TabsContent>
           </CardContent>
         </Card>
       </Tabs>
-    </main>
+    </Root>
   );
 }
 
-export function MePage() {
+export function MePage(props: MePageProps) {
   return (
     <RequireAuth>
-      <MeContent />
+      <MeContent {...props} />
     </RequireAuth>
   );
 }

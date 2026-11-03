@@ -450,7 +450,8 @@ MAX_UPLOAD_MB=500
 
 ### 실행·시험
 
-- legacy 말모아(3001·8010)는 새 앱 검증이 끝날 때까지 실제로 쓰는 앱이다. **3001을 시험 브라우저로 열지 않는다.** 새 앱 시험은 5181(화면)·8003(백엔드). 화면: `cd frontend && API_PROXY_TARGET=http://localhost:8003 npx next dev -p 5181`. 시험 브라우저 로그인은 비밀번호 대신 백엔드에서 `create_token(<id>, 'refresh')`로 만든 토큰을 `meerkit_refresh` 쿠키(경로 `/api/auth`)로 넣는다 — 토큰은 출력하지 않는다.
+- legacy 말모아(3001·8010)는 새 앱 검증이 끝날 때까지 실제로 쓰는 앱이다. **3001을 시험 브라우저로 열지 않는다.** 새 앱 시험은 5181(화면)·8003(백엔드). 화면: `cd frontend && API_PROXY_TARGET=http://localhost:8003 npx next dev -p 5181`. 시험 브라우저 로그인은 비밀번호 대신 백엔드에서 `app.auth.service.issue_tokens(db, user)`로 발급한 리프레시 토큰을 `meerkit_refresh` 쿠키(경로 `/api/auth`)로 넣는다 (meerkit rc.10 부터 서버 기록이 있어야 하므로 `create_token(…, 'refresh')`만으로는 401, 갱신마다 회전) — 토큰은 출력하지 않는다.
+- meerkit 업데이트: `npx @snackcup/meerkit@<버전> update`(미리보기) → 커밋·DB 백업 → `update --apply` → 킷 마이그레이션과 말모아 마이그레이션이 갈라지면 `uv run alembic merge -m … heads` → 개발·테스트 DB `upgrade head` → 전체 테스트·빌드·5181 확인 (`docs/2026-11-03-통합계획.md` "meerkit rc.10 업데이트").
 - 3000 포트는 meerkit 패키지 소스(`~/Desktop/snackcup_meerkit/meerkit`) 화면이 쓰고 있을 수 있다. 끄지 않는다.
 - 테스트 (`backend/`): `uv run pytest` (전체 = meerkit + 말모아), 말모아만 `uv run pytest tests/features/malmoa`, s3 모드는 앞에 `MALMOA_FILES_BACKEND=s3`. `.env`의 `FRONTEND_BASE_URL`이 3000 이 아니면 meerkit 소셜 로그인 테스트 11개가 실패한다 (트러블 이슈 #34, 앞에 `FRONTEND_BASE_URL=http://localhost:3000`). legacy 폴더에서는 `uv run python -m pytest` (#32). 결과는 통과·실패 수 그대로 보고한다.
 - 작업하면 `docs/`의 날짜 문서·진행표(`01-기획.md`)·기능명세·목차(`README.md`)를 함께 고친다.

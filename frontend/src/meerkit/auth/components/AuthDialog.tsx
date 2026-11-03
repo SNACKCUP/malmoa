@@ -11,6 +11,7 @@ import {
 
 import { errorMessage } from "../../api/error";
 import { meerkitConfig } from "../../config";
+import { useAuth } from "../hooks";
 import { useAuthDialog } from "../dialog-store";
 import { useLoginLockout } from "../lockout";
 import { useCheckUserId, useForgotId, useForgotPassword, useGoogleLogin, useLogin, useSendEmailCode, useSignup, useVerifyEmailCode } from "../mutations";
@@ -27,7 +28,10 @@ const copy = {
 } as const;
 
 export function AuthDialog() {
-  const { open, mode, closeDialog, setMode } = useAuthDialog();
+  const { open: requested, mode, closeDialog, setMode } = useAuthDialog();
+  const { isAuthenticated } = useAuth();
+  // 로그인한 사람에게는 인증 창을 열지 않는다
+  const open = requested && !isAuthenticated;
   const login = useLogin();
   const googleLogin = useGoogleLogin();
   const signup = useSignup();

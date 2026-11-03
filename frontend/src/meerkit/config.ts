@@ -6,13 +6,14 @@ const githubUrl =
 
 export const meerkitConfig = {
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api",
-  // 웰컴 페이지 Docs 버튼이 여는 주소 (사용 설명서 사이트). 비워 두면 버튼을 보여 주지 않는다.
-  docsUrl: process.env.NEXT_PUBLIC_DOCS_URL ?? "",
+  // 웰컴 페이지 Docs 버튼이 여는 주소. 기본은 Meerkit 공식 설명서. 값이 비어 있어도 기본 주소를 쓴다.
+  docsUrl: process.env.NEXT_PUBLIC_DOCS_URL || "https://meerkit.dev/",
   githubUrl,
   // 문서 사이트로만 배포할 때. 홈은 /docs로 이동하고 앱 화면(/me, /admin)은 닫힌다.
   docsOnly: process.env.NEXT_PUBLIC_DOCS_ONLY === "true",
   theme: userConfig.theme ?? "meerkit",
   motion: userConfig.motion ?? true,
+  themeToggle: userConfig.themeToggle ?? true,
   signup: {
     passwordConfirm: userConfig.signup?.passwordConfirm ?? false,
     optionalFields: userConfig.signup?.optionalFields ?? [],

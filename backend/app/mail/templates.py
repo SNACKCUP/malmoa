@@ -63,11 +63,31 @@ def _password_reset(data: dict[str, Any]) -> Rendered:
     )
 
 
+def _login_id(data: dict[str, Any]) -> Rendered:
+    name, login_id, link = str(data["name"]), str(data["login_id"]), str(data["login_link"])
+    lines = [f"{name}님의 아이디는 {login_id} 입니다."]
+    if not data.get("has_password", True):
+        lines.append("이 계정은 소셜 로그인으로 가입해 비밀번호가 없습니다. 비밀번호 찾기로 비밀번호를 만들면 아이디로도 로그인할 수 있습니다.")
+    lines.append("본인이 요청하지 않았다면 이 메일을 무시하세요. 계정에는 아무 변화가 없습니다.")
+    return Rendered(
+        subject=f"[{APP_NAME}] 아이디 안내",
+        text="\n\n".join([*lines[:1], link, *lines[1:]]),
+        html=_html(
+            [
+                f"{escape(name)}님의 아이디는 <strong style=\"font-size:18px\">{escape(login_id)}</strong> 입니다.",
+                f'<a href="{escape(link)}">로그인하러 가기</a>',
+                *[escape(line) for line in lines[1:]],
+            ]
+        ),
+    )
+
+
 Builder = Callable[[dict[str, Any]], Rendered]
 
 TEMPLATES: dict[str, Builder] = {
     "email_code": _email_code,
     "password_reset": _password_reset,
+    "login_id": _login_id,
 }
 
 _NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}")

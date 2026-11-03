@@ -1,30 +1,30 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { Card, CardContent } from "@/components/ui/card";
 
 import { errorMessage } from "../api/error";
 import { LogoMark } from "../brand/LogoMark";
-import { meerkitConfig } from "../config";
 import { ResetPasswordForm } from "./components/ResetPasswordForm";
+import { GuestOnly } from "./guards/GuestOnly";
 import { useAuthDialog } from "./dialog-store";
-import { useAuth } from "./hooks";
 import { useResetPassword } from "./mutations";
 
-// 메일의 링크(/reset-password?token=...)로 들어오는 화면
+// 메일의 링크(/reset-password?token=...)로 들어오는 화면. 로그인한 사람은 들어올 수 없다.
 export function ResetPasswordPage() {
+  return (
+    <GuestOnly>
+      <ResetPasswordContent />
+    </GuestOnly>
+  );
+}
+
+function ResetPasswordContent() {
   const token = useSearchParams().get("token");
   const reset = useResetPassword();
   const openDialog = useAuthDialog((s) => s.openDialog);
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
-
-  // 재설정을 마치고 이 화면에서 로그인하면 웰컴 화면으로 보낸다
-  useEffect(() => {
-    if (reset.isSuccess && isAuthenticated) router.replace(meerkitConfig.routes.home);
-  }, [reset.isSuccess, isAuthenticated, router]);
+  // 재설정을 마치고 이 화면에서 로그인하면 GuestOnly가 웰컴 화면으로 보낸다
 
   return (
     <div className="flex min-h-screen flex-col">

@@ -6,6 +6,8 @@ export default defineMeerkitConfig({
   theme: "meerkit",
   // false면 Meerkit 애니메이션을 모두 끈다
   motion: true,
+  // 화면 오른쪽 아래 다크 모드 버튼 (rc.10 에서 생김). 말모아 화면은 98 밝은 색 고정이라 끈다 (2026-11-03)
+  themeToggle: false,
 
   signup: {
     passwordConfirm: false,

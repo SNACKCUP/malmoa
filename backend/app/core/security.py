@@ -50,6 +50,9 @@ def create_token(user_id: int, token_type: TokenType) -> str:
         "iat": int(now.timestamp()),
         "exp": now + expires,
     }
+    if token_type == "refresh":
+        # 같은 초에 두 번 발급해도 값이 달라지게 (서버가 리프레시 토큰을 해시로 저장해 하나씩 구분함)
+        payload["jti"] = secrets.token_urlsafe(16)
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=ALGORITHM)
 
 

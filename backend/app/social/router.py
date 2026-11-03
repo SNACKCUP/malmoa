@@ -107,6 +107,6 @@ def social_callback(
         return _to_frontend(provider, e.code)
 
     response = _to_frontend(provider)
-    _, refresh_token = auth_service.issue_tokens(user)
+    _, refresh_token = auth_service.issue_tokens(db, user)
     set_refresh_cookie(response, refresh_token)
     return response

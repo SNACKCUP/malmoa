@@ -97,4 +97,4 @@ def change_password(
 ):
     auth_service.change_password(db, user, body.current_password, body.new_password)
     # 지금 쓰던 액세스 토큰도 무효가 되므로, 프론트는 401을 받으면 /auth/refresh 로 새 토큰을 받습니다.
-    auth_router.set_refresh_cookie(response, auth_service.issue_tokens(user)[1])
+    auth_router.set_refresh_cookie(response, auth_service.issue_tokens(db, user)[1])

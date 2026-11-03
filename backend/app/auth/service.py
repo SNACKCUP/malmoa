@@ -11,7 +11,12 @@ from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.auth import repository as auth_repository
-from app.auth.models import EmailVerification, PasswordResetToken
+from app.auth.models import (
+    EmailVerification,
+    LoginIdMail,
+    PasswordResetToken,
+    RefreshToken,
+)
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.security import (
@@ -108,9 +113,77 @@ def authenticate(db: Session, login_id: str, password: str) -> User:
     return user
 
 
-def issue_tokens(user: User) -> tuple[str, str]:
-    """(액세스 토큰, 리프레시 토큰)"""
-    return create_token(user.id, "access"), create_token(user.id, "refresh")
+# ---- 토큰 발급·갱신·로그아웃 (#55) ----
+
+# 여러 탭이 거의 동시에 갱신하면 둘째 요청은 방금 바뀐 토큰을 들고 옵니다. 이 시간 안이면 도난으로 보지 않고
+# 액세스 토큰만 다시 줍니다 (쿠키는 첫 요청이 받은 새 토큰 그대로)
+REFRESH_REUSE_GRACE_SECONDS = 10
+
+
+def _new_refresh_token(db: Session, user: User, family_id: str | None) -> tuple[str, RefreshToken]:
+    token = create_token(user.id, "refresh")
+    row = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_secret(token),
+        family_id=family_id or generate_token(),
+        expires_at=_now() + timedelta(days=settings.refresh_token_expire_days),
+    )
+    auth_repository.add(db, row)
+    return token, row
+
+
+def issue_tokens(db: Session, user: User) -> tuple[str, str]:
+    """로그인 성공: (액세스 토큰, 리프레시 토큰). 리프레시 토큰은 해시로 기록해 두고 새 family 를 엽니다"""
+    refresh, _ = _new_refresh_token(db, user, None)
+    db.commit()
+    return create_token(user.id, "access"), refresh
+
+
+def refresh_tokens(db: Session, token: str) -> tuple[str, str | None] | None:
+    """리프레시 쿠키로 (새 액세스 토큰, 새 리프레시 토큰). 새 리프레시 토큰이 None 이면 쿠키를 그대로 둡니다.
+
+    기록에 없거나 만료·폐기된 토큰, 막힌 회원이면 None. 이미 회전된 토큰이 유예 시간 뒤에 다시 오면 복사된 것으로 보고
+    같은 family 를 모두 폐기합니다. 로그에는 토큰 값을 남기지 않습니다.
+    """
+    now = _now()
+    row = auth_repository.get_refresh_token_by_hash(db, hash_secret(token))
+    if row is None or row.expires_at <= now:
+        return None
+    user = user_from_token(db, token, "refresh")
+    if user is None or user.id != row.user_id:
+        if row.revoked_at is None:  # 비활성화·탈퇴·비밀번호 변경 전 토큰: 다시 쓰이지 않게 바로 폐기
+            row.revoked_at = now
+            db.commit()
+        return None
+    if row.revoked_at is not None:
+        if row.replaced_by_id is None:  # 로그아웃·전체 폐기한 토큰
+            return None
+        if now - row.revoked_at <= timedelta(seconds=REFRESH_REUSE_GRACE_SECONDS):
+            # 유예는 바뀐 새 토큰이 아직 살아 있을 때만 줍니다. 그 사이 로그아웃했으면 옛 쿠키로 다시 들어오지 못합니다
+            replacement = auth_repository.get_refresh_token(db, row.replaced_by_id)
+            if replacement is None or replacement.revoked_at is not None:
+                return None
+            return create_token(user.id, "access"), None
+        revoked = auth_repository.revoke_refresh_family(db, row.family_id, now)
+        db.commit()
+        logger.warning("리프레시 토큰 재사용 감지: 같은 로그인의 토큰 폐기 user_id=%s revoked=%s", user.id, revoked)
+        return None
+    new_token, new_row = _new_refresh_token(db, user, row.family_id)
+    row.revoked_at = now
+    row.replaced_by_id = new_row.id
+    db.commit()
+    return create_token(user.id, "access"), new_token
+
+
+def revoke_refresh_token(db: Session, token: str) -> None:
+    """로그아웃: 이 기기(같은 로그인 family)의 리프레시 토큰을 모두 폐기 (다른 기기는 그대로).
+
+    방금 회전돼 옛 토큰이 된 쿠키로 로그아웃해도 새 토큰까지 함께 막히도록 family 단위로 폐기합니다.
+    """
+    row = auth_repository.get_refresh_token_by_hash(db, hash_secret(token))
+    if row is not None:
+        auth_repository.revoke_refresh_family(db, row.family_id, _now())
+        db.commit()
 
 
 def user_from_token(db: Session, token: str, token_type: str) -> User | None:
@@ -128,7 +201,7 @@ def user_from_token(db: Session, token: str, token_type: str) -> User | None:
     return user
 
 
-# ---- 메일 발송 횟수 제한 (인증번호·비밀번호 재설정 공통) ----
+# ---- 메일 발송 횟수 제한 (인증번호·비밀번호 재설정·아이디 찾기 공통) ----
 
 
 def mail_retry_after(count_today: int, first_today: datetime | None, last: datetime | None) -> int | None:
@@ -241,6 +314,36 @@ def signup(db: Session, data: dict, *, verification_token: str | None) -> User:
     return user_service.create_user(db, **data, email_verified=verified)
 
 
+# ---- 아이디 찾기 ----
+
+
+def request_login_id(db: Session, tasks: BackgroundTasks, email: str) -> None:
+    """가입한 이메일로 아이디를 메일로 보냅니다. 가입 여부를 알려 주지 않도록 어떤 경우에도 조용히 끝납니다.
+
+    아이디는 메일 본문에만 넣고 로그에는 남기지 않습니다 (회원 번호만 남김).
+    """
+    user = repository.get_by_email(db, email.strip().lower())
+    if user is None or not user.is_active or user.deactivated_at is not None or user.deleted_at is not None:
+        return
+    count, first, last = auth_repository.login_id_mails_since(db, user.id, _now() - timedelta(days=1))
+    if mail_retry_after(count, first, last) is not None:
+        logger.info("아이디 찾기 메일 제한으로 건너뜀 user_id=%s", user.id)
+        return
+    auth_repository.add(db, LoginIdMail(user_id=user.id, created_at=_now()))
+    db.commit()
+    tasks.add_task(
+        send_mail,
+        user.email,
+        "login_id",
+        {
+            "name": user.name,
+            "login_id": user.login_id,
+            "has_password": user.has_password,
+            "login_link": settings.frontend_base_url.rstrip("/"),
+        },
+    )
+
+
 # ---- 비밀번호 찾기·재설정·변경 ----
 
 INVALID_RESET_MESSAGE = "링크가 만료되었거나 이미 사용되었습니다."
@@ -254,6 +357,7 @@ def _set_password(db: Session, user: User, new_password: str) -> None:
     user.failed_login_count = 0
     user.locked_until = None
     auth_repository.expire_reset_tokens(db, user.id, now)
+    auth_repository.revoke_user_refresh_tokens(db, user.id, now)  # 모든 기기 로그아웃
 
 
 def request_password_reset(db: Session, tasks: BackgroundTasks, email: str) -> None:

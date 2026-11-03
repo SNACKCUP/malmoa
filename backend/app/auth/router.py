@@ -16,6 +16,7 @@ from app.auth import service
 from app.auth.deps import get_current_user
 from app.auth.schemas import (
     EmailCodeRequest,
+    ForgotIdRequest,
     ForgotPasswordRequest,
     LoginId,
     LoginIdCheck,
@@ -51,8 +52,8 @@ def set_refresh_cookie(response: Response, token: str) -> None:
     )
 
 
-def login_response(response: Response, user: User) -> TokenResponse:
-    access_token, refresh_token = service.issue_tokens(user)
+def login_response(response: Response, db: Session, user: User) -> TokenResponse:
+    access_token, refresh_token = service.issue_tokens(db, user)
     set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
@@ -115,26 +116,38 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
 )
 def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = service.authenticate(db, body.user_id, body.password)
-    return login_response(response, user)
+    return login_response(response, db, user)
 
 
 @router.post(
     "/refresh",
     response_model=TokenResponse,
-    summary="리프레시 쿠키로 액세스 토큰 재발급",
+    summary="리프레시 쿠키로 액세스 토큰 재발급 (리프레시 토큰도 새것으로 바뀜)",
 )
 def refresh(
     response: Response,
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE),
 ):
-    user = service.user_from_token(db, refresh_token, "refresh") if refresh_token else None
-    if user is None:
+    result = service.refresh_tokens(db, refresh_token) if refresh_token else None
+    if result is None:
         response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="다시 로그인해 주세요."
         )
-    return login_response(response, user)
+    access_token, new_refresh = result
+    if new_refresh is not None:  # 갱신할 때마다 새 리프레시 토큰으로 바꿈 (회전)
+        set_refresh_cookie(response, new_refresh)
+    return TokenResponse(access_token=access_token)
+
+
+@router.post(
+    "/id/forgot",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="아이디 찾기 메일 요청 (가입 여부와 관계없이 항상 204, 같은 회원 60초 간격·하루 10회)",
+)
+def forgot_id(body: ForgotIdRequest, tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    service.request_login_id(db, tasks, body.email)
 
 
 @router.post(
@@ -158,8 +171,18 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     service.reset_password(db, body.token, body.password)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="로그아웃")
-def logout(response: Response):
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="로그아웃 (이 기기의 리프레시 토큰을 서버에서도 폐기, 다른 기기는 그대로)",
+)
+def logout(
+    response: Response,
+    db: Session = Depends(get_db),
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE),
+):
+    if refresh_token:
+        service.revoke_refresh_token(db, refresh_token)
     response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
 
 

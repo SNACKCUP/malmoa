@@ -11,6 +11,7 @@ import { refreshAccessToken } from "../api/client";
 import { hasSessionHint } from "../auth/session-hint";
 import { useAuthStore } from "../auth/store";
 import { meerkitConfig } from "../config";
+import { FloatingThemeToggle } from "../theme/FloatingThemeToggle";
 import { ThemeSync } from "../theme/ThemeSync";
 
 // 새로고침 시 리프레시 쿠키로 액세스 토큰을 복원한다.
@@ -41,6 +42,7 @@ export function MeerkitProvider({ children }: { children: React.ReactNode }) {
       <Suspense fallback={null}>
         <ThemeSync />
       </Suspense>
+      {meerkitConfig.themeToggle && <FloatingThemeToggle />}
       <AuthDialog />
       <Toaster />
     </QueryClientProvider>
