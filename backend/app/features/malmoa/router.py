@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.features.malmoa.api import events, jobs, llm_settings, people, recorder, usage
+from app.features.malmoa.api.jobs import cleanup_uploads
 from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import engine
 from app.features.malmoa.schemas.jobs import ErrorResponse, Health
@@ -44,6 +45,13 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("PostgreSQL에 연결할 수 없습니다. backend/.env 의 DATABASE_URL 과 DB 실행 여부를 확인하세요.") from e
     except Exception as e:
         raise RuntimeError("말모아 표가 없습니다. backend 폴더에서 uv run alembic upgrade head 를 실행하세요.") from e
+
+    # 끝내지 않은 직접 업로드 정리 (업로드 시작할 때마다도 한다). 실패해도 서버는 켠다
+    try:
+        if removed := cleanup_uploads():
+            log.info("끝내지 않은 업로드 %d개를 지웠습니다", removed)
+    except Exception:
+        log.exception("끝내지 않은 업로드 정리 실패 (다음에 다시)")
 
     store = JobStore()
     # 작업 대기열은 DB 에 있다. 서버가 꺼질 때 처리 중이던 작업은 생존 신호가 끊긴 뒤 작업자가 다시 대기열로 돌려

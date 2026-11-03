@@ -78,6 +78,27 @@ class AttendeesUpdate(CamelModel):
     attendees: list[Attendee] = Field(max_length=MAX_ATTENDEES)
 
 
+
+class UploadStart(CamelModel):
+    """직접 업로드 시작 (통합 단계 5-2): 파일 정보만 보내고 저장소에 올릴 주소를 받는다"""
+
+    file_name: str = Field(min_length=1, max_length=255)
+    size_bytes: int = Field(gt=0)
+    content_type: str = Field(default="application/octet-stream", max_length=100)
+    source: Literal["upload", "recording", "image"] = "upload"
+    attendees: list[Attendee] = Field(default=[], max_length=MAX_ATTENDEES)
+    event_id: str | None = None
+
+
+class UploadTicket(CamelModel):
+    """브라우저가 저장소로 바로 PUT 할 주소. 이 주소로는 이 파일 하나만 올릴 수 있고 읽을 수는 없다"""
+
+    upload_id: str
+    url: str
+    method: Literal["PUT"] = "PUT"
+    headers: dict[str, str]  # PUT 할 때 그대로 보낼 헤더 (서명에 들어 있음)
+    expires_at: datetime  # 이 시각 전에 PUT 을 시작해야 한다
+
 class Person(CamelModel):
     """참석자 명단의 한 사람"""
 

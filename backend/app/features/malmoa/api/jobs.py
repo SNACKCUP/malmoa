@@ -3,6 +3,7 @@ import logging
 import mimetypes
 import shutil
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import quote
@@ -19,12 +20,15 @@ from fastapi import (
 )
 from fastapi.responses import Response, StreamingResponse
 from pydantic import ValidationError
+from sqlalchemy import delete, func, select
 
+from app.core.exceptions import ConflictError
 from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import SessionLocal
 from app.features.malmoa.deps import CurrentUser
 from app.features.malmoa.job_id import is_job_id, new_job_id
 from app.features.malmoa.models import Event as EventRow
+from app.features.malmoa.models import PendingUpload
 from app.features.malmoa.schemas.jobs import (
     AttendeesUpdate,
     ErrorResponse,
@@ -35,6 +39,8 @@ from app.features.malmoa.schemas.jobs import (
     MinutesUpdate,
     Transcript,
     TranscriptUpdate,
+    UploadStart,
+    UploadTicket,
     unique_attendees,
 )
 from app.features.malmoa.services import export, llm, speech_engines
@@ -123,6 +129,42 @@ def _own_event(user: CurrentUser, event_id: str | None) -> uuid.UUID | None:
     return key
 
 
+def _checked_name(raw: str | None, source: str) -> tuple[str, str, str]:
+    """(표시 이름, 확장자, source). 지원하지 않는 형식이면 400. 사진 확장자면 source=image"""
+    settings = get_settings()
+    file_name = _display_name(raw)
+    ext = Path(file_name).suffix.lower()
+    if ext not in settings.allowed_extensions:
+        allowed = ", ".join(e.lstrip(".").upper() for e in settings.allowed_extensions)
+        raise HTTPException(400, f"지원하지 않는 파일 형식입니다. ({allowed})")
+    return file_name, ext, "image" if ext in settings.image_extensions else source
+
+
+def _too_big() -> HTTPException:
+    return HTTPException(413, f"파일이 너무 큽니다. 최대 {get_settings().max_upload_mb}MB까지 올릴 수 있습니다.")
+
+
+def _new_job(request: Request, *, job_id: str, user_id: int, file_name: str, stored_name: str, source: str, size: int, attendees: list[dict], event_key: uuid.UUID | None) -> Job:
+    """저장소에 원본이 들어간 뒤 작업 기록을 만든다 (서버로 올리기·직접 올리기 공통)"""
+    ts = now()
+    job = _store(request).create(
+        id=job_id,
+        user_id=user_id,
+        file_name=file_name,
+        stored_name=stored_name,
+        source=source,
+        created_at=ts,
+        updated_at=ts,
+        size_bytes=size,
+        status=JobStatus.QUEUED,
+        stage="글자 읽기 대기" if source == "image" else "변환 대기",
+        attendees=attendees,
+    )
+    if event_key:
+        _link_event(event_key, job.id)
+    return job
+
+
 def _link_event(event_id: uuid.UUID, job_id: str) -> None:
     # 녹음을 처음 시작한 일정에 연결한다. 일정이 그사이 지워졌으면 그냥 넘어간다
     with SessionLocal() as db:
@@ -150,13 +192,7 @@ async def create_job(
     settings = get_settings()
     attendee_list = _parse_attendees(attendees)
     event_key = _own_event(user, event_id)
-    file_name = _display_name(file.filename)
-    ext = Path(file_name).suffix.lower()
-    if ext not in settings.allowed_extensions:
-        allowed = ", ".join(e.lstrip(".").upper() for e in settings.allowed_extensions)
-        raise HTTPException(400, f"지원하지 않는 파일 형식입니다. ({allowed})")
-    if ext in settings.image_extensions:
-        source = "image"
+    file_name, ext, source = _checked_name(file.filename, source)
 
     job_id = new_job_id()
     stored_name = f"{job_id}{ext}"
@@ -171,7 +207,7 @@ async def create_job(
             while chunk := await file.read(CHUNK):
                 size += len(chunk)
                 if size > limit:
-                    raise HTTPException(413, f"파일이 너무 큽니다. 최대 {settings.max_upload_mb}MB까지 올릴 수 있습니다.")
+                    raise _too_big()
                 out.write(chunk)
         if size == 0:
             raise HTTPException(400, "빈 파일입니다.")
@@ -181,23 +217,113 @@ async def create_job(
     finally:
         tmp.unlink(missing_ok=True)
 
-    ts = now()
-    job = _store(request).create(
-        id=job_id,
-        user_id=user.id,
-        file_name=file_name,
-        stored_name=stored_name,
-        source=source,
-        created_at=ts,
-        updated_at=ts,
-        size_bytes=size,
-        status=JobStatus.QUEUED,
-        stage="글자 읽기 대기" if source == "image" else "변환 대기",
-        attendees=attendee_list,
+    return _new_job(request, job_id=job_id, user_id=user.id, file_name=file_name, stored_name=stored_name, source=source, size=size, attendees=attendee_list, event_key=event_key)
+
+
+# ── 직접 업로드 (통합 단계 5-2): 브라우저 → 저장소(R2) 서명 주소 PUT → 끝났다고 알림 → 작업 생성 ──
+# 큰 녹음이 화면 서버(Vercel)·백엔드를 거치지 않는다. 로컬 저장소(local)에서는 쓰지 않고 위 POST /api/jobs 로 올린다.
+
+
+def cleanup_uploads() -> int:
+    """끝내지 않은 지 pending_upload_hours 가 지난 업로드를 객체와 함께 지운다. 지운 수"""
+    cutoff = now() - timedelta(hours=get_settings().pending_upload_hours)
+    with SessionLocal() as db:
+        old = list(db.scalars(select(PendingUpload).where(PendingUpload.created_at < cutoff)))
+        files = get_store()
+        for up in old:
+            try:
+                files.delete(upload_key(up.stored_name))
+            except StorageError:
+                log.warning("끝내지 않은 업로드 객체를 지우지 못함: %s (다음에 다시)", up.id)
+                continue
+            db.delete(up)
+        db.commit()
+    return len(old)
+
+
+@router.post(
+    "/uploads",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UploadTicket,
+    responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 413: {"model": ErrorResponse}, 429: {"model": ErrorResponse}},
+)
+def start_upload(user: CurrentUser, body: UploadStart) -> UploadTicket:
+    """직접 업로드 시작: 형식·크기를 확인하고 이 파일 하나만 올릴 수 있는 서명 주소를 준다.
+    로컬 저장소면 409 DIRECT_UPLOAD_OFF — 화면은 POST /api/jobs 로 올린다."""
+    settings = get_settings()
+    files = get_store()
+    if files.kind != "s3":
+        raise ConflictError("DIRECT_UPLOAD_OFF", "이 서버는 저장소 직접 업로드를 쓰지 않습니다. 서버로 올려 주세요.")
+    file_name, ext, source = _checked_name(body.file_name, body.source)
+    if body.size_bytes > settings.max_upload_mb * 1024 * 1024:
+        raise _too_big()
+    event_key = _own_event(user, body.event_id)
+    cleanup_uploads()
+    with SessionLocal() as db:
+        pending = db.scalar(select(func.count()).select_from(PendingUpload).where(PendingUpload.user_id == user.id))
+        if pending >= settings.pending_upload_max:
+            raise HTTPException(429, "올리는 중인 파일이 너무 많습니다. 먼저 올린 파일이 끝난 뒤 다시 시도해 주세요.")
+        upload_id = new_job_id()
+        stored_name = f"{upload_id}{ext}"
+        content_type = body.content_type or "application/octet-stream"
+        try:
+            url = files.presign_put(upload_key(stored_name), content_type, body.size_bytes, settings.upload_url_expires_seconds)
+        except StorageError:
+            raise HTTPException(503, "파일 저장소에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.") from None
+        db.add(
+            PendingUpload(
+                id=upload_id,
+                user_id=user.id,
+                file_name=file_name,
+                stored_name=stored_name,
+                source=source,
+                content_type=content_type,
+                size_bytes=body.size_bytes,
+                attendees=[a.model_dump() for a in unique_attendees(body.attendees)],
+                event_id=event_key,
+            )
+        )
+        db.commit()
+    return UploadTicket(
+        upload_id=upload_id,
+        url=url,
+        headers={"Content-Type": content_type, "Cache-Control": "private, no-store"},
+        expires_at=now() + timedelta(seconds=settings.upload_url_expires_seconds),
     )
-    if event_key:
-        _link_event(event_key, job.id)
-    return job
+
+
+@router.post(
+    "/uploads/{upload_id}/complete",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Job,
+    responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+def complete_upload(request: Request, user: CurrentUser, upload_id: str) -> Job:
+    """직접 업로드 끝: 저장소에 알린 크기 그대로 들어왔는지 확인하고 작업을 만든다 (변환 시작은 따로)"""
+    if not is_job_id(upload_id):
+        raise HTTPException(404, "올리는 중인 파일을 찾을 수 없습니다.")
+    files = get_store()
+    with SessionLocal() as db:
+        up = db.get(PendingUpload, upload_id)
+        if up is None or up.user_id != user.id:
+            raise HTTPException(404, "올리는 중인 파일을 찾을 수 없습니다.")
+        key = upload_key(up.stored_name)
+        try:
+            actual = files.size(key)
+        except StorageError:
+            raise HTTPException(503, "파일 저장소에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.") from None
+        if actual is None:
+            raise HTTPException(409, "파일이 아직 저장소에 올라가지 않았습니다. 올리기가 끝난 뒤 다시 시도해 주세요.")
+        if actual != up.size_bytes:
+            # 알린 것과 다른 파일 — 지우고 처음부터 다시 올리게 한다
+            files.delete(key)
+            db.execute(delete(PendingUpload).where(PendingUpload.id == upload_id))
+            db.commit()
+            raise HTTPException(400, "올린 파일 크기가 처음 알린 크기와 다릅니다. 다시 올려 주세요.")
+        fields = {"file_name": up.file_name, "stored_name": up.stored_name, "source": up.source, "size": actual, "attendees": up.attendees, "event_key": up.event_id}
+        db.delete(up)
+        db.commit()
+    return _new_job(request, job_id=upload_id, user_id=user.id, **fields)
 
 
 @router.put("/{job_id}/attendees", response_model=Job, responses=ERRORS)

@@ -81,7 +81,7 @@ local_only = pytest.mark.skipif(STORAGE_MODE != "local", reason="로컬 저장�
 s3_only = pytest.mark.skipif(STORAGE_MODE != "s3", reason="S3 저장소 전용 (MALMOA_FILES_BACKEND=s3)")
 
 # 말모아 표 + meerkit users (CASCADE 로 users 에 딸린 표도 함께 비워진다. roles·terms 같은 기준 표는 그대로)
-_TABLES = "jobs, people, events, event_reminders, recorder_beats, llm_settings, llm_usage, llm_usage_limits, malmoa_profiles, users"
+_TABLES = "malmoa_uploads, jobs, people, events, event_reminders, recorder_beats, llm_settings, llm_usage, llm_usage_limits, malmoa_profiles, users"
 
 
 def files():

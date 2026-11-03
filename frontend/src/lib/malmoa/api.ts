@@ -184,44 +184,82 @@ export async function originalFileUrl(id: string): Promise<string> {
 }
 export const minutesFilePath = (id: string, format: MinutesFormat) => `/api/jobs/${id}/download?format=${format}`
 
-/** 파일 업로드 → 작업 생성. fetch는 업로드 진행률을 주지 않아 XHR을 쓴다. */
-export function createJob(file: Blob, fileName: string, source: JobSource, onProgress?: (ratio: number) => void, attendees: Attendee[] = [], eventId?: string): Promise<Job> {
-  const form = new FormData()
-  form.append('file', file, fileName)
-  form.append('source', source)
-  if (attendees.length) form.append('attendees', JSON.stringify(attendees))
-  if (eventId) form.append('event_id', eventId)
-
-  const upload = (token: string | null, retried: boolean): Promise<Job> => new Promise((resolve, reject) => {
+/** XHR 로 보내고 올라간 비율을 알린다 (fetch 는 업로드 진행률을 주지 않는다) */
+function xhrSend(method: string, url: string, body: Blob | FormData, headers: Record<string, string>, onProgress?: (ratio: number) => void): Promise<XMLHttpRequest> {
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${API_URL}/api/jobs`)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.open(method, url)
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v)
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(e.loaded / e.total)
     }
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText) as Job)
-        return
-      }
-      if (xhr.status === 401 && !retried) {
-        // 토큰이 업로드 도중 만료된 경우: 갱신해 한 번만 다시 올린다
-        void refreshAccessToken().then((fresh) => (fresh ? upload(fresh, true).then(resolve, reject) : reject(new ApiError(401, '로그인이 만료되었습니다. 다시 로그인해 주세요.'))))
-        return
-      }
-      let message = `업로드하지 못했습니다. (HTTP ${xhr.status})`
-      try {
-        const body = JSON.parse(xhr.responseText) as { detail?: unknown }
-        if (typeof body.detail === 'string') message = body.detail
-      } catch {
-        /* JSON이 아닌 응답 */
-      }
-      reject(new ApiError(xhr.status, message))
-    }
+    xhr.onload = () => resolve(xhr)
     xhr.onerror = () => reject(new ApiError(0, SERVER_DOWN))
-    xhr.send(form)
+    xhr.send(body)
   })
+}
+
+function xhrError(xhr: XMLHttpRequest, fallback: string): ApiError {
+  let message = `${fallback} (HTTP ${xhr.status})`
+  try {
+    const body = JSON.parse(xhr.responseText) as { detail?: unknown }
+    if (typeof body.detail === 'string') message = body.detail
+  } catch {
+    /* JSON이 아닌 응답 */
+  }
+  return new ApiError(xhr.status, message)
+}
+
+/** 서버로 올리기 (로컬 저장소): multipart 로 백엔드에 보낸다 */
+function formUpload(form: FormData, onProgress?: (ratio: number) => void): Promise<Job> {
+  const upload = async (token: string | null, retried: boolean): Promise<Job> => {
+    const xhr = await xhrSend('POST', `${API_URL}/api/jobs`, form, token ? { Authorization: `Bearer ${token}` } : {}, onProgress)
+    if (xhr.status >= 200 && xhr.status < 300) return JSON.parse(xhr.responseText) as Job
+    if (xhr.status === 401 && !retried) {
+      // 토큰이 업로드 도중 만료된 경우: 갱신해 한 번만 다시 올린다
+      const fresh = await refreshAccessToken()
+      if (fresh) return upload(fresh, true)
+      throw new ApiError(401, '로그인이 만료되었습니다. 다시 로그인해 주세요.')
+    }
+    throw xhrError(xhr, '업로드하지 못했습니다.')
+  }
   return upload(useAuthStore.getState().accessToken, false)
+}
+
+interface UploadTicket {
+  uploadId: string
+  url: string
+  method: 'PUT'
+  headers: Record<string, string>
+  expiresAt: string
+}
+
+/**
+ * 파일 업로드 → 작업 생성 (통합 단계 5-2).
+ * 저장소가 R2(s3)면 서명 주소를 받아 브라우저가 저장소에 바로 PUT 하고 끝났다고 알린다 — 큰 녹음이 화면 서버·백엔드를 거치지 않는다.
+ * 서버가 409(DIRECT_UPLOAD_OFF, 로컬 저장소)로 답하면 예전처럼 서버로 올린다.
+ */
+export async function createJob(file: Blob, fileName: string, source: JobSource, onProgress?: (ratio: number) => void, attendees: Attendee[] = [], eventId?: string): Promise<Job> {
+  let ticket: UploadTicket | null = null
+  try {
+    ticket = await json<UploadTicket>(
+      '/api/jobs/uploads',
+      jsonBody('POST', { fileName, sizeBytes: file.size, contentType: file.type || 'application/octet-stream', source, attendees, eventId: eventId ?? null }),
+    )
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 409)) throw e
+  }
+  if (!ticket) {
+    const form = new FormData()
+    form.append('file', file, fileName)
+    form.append('source', source)
+    if (attendees.length) form.append('attendees', JSON.stringify(attendees))
+    if (eventId) form.append('event_id', eventId)
+    return formUpload(form, onProgress)
+  }
+  const put = await xhrSend(ticket.method, ticket.url, file, ticket.headers, onProgress)
+  if (put.status < 200 || put.status >= 300) throw new ApiError(put.status, `저장소에 올리지 못했습니다. (HTTP ${put.status}) 잠시 뒤 다시 시도해 주세요.`)
+  return json<Job>(`/api/jobs/uploads/${ticket.uploadId}/complete`, { method: 'POST' })
 }
 
 /** 업로드 후 바로 음성 변환을 요청한다. */

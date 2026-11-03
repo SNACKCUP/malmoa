@@ -21,6 +21,17 @@
 
 ## 작업
 
+### 저장소 직접 업로드 (2026-11-03 통합 단계 5-2, `MALMOA_FILES_BACKEND=s3`일 때)
+
+| 요청 | 본문 | 응답 | 오류 |
+|---|---|---|---|
+| `POST /api/jobs/uploads` | `{fileName, sizeBytes, contentType, source: "upload"\|"recording"\|"image", attendees?: [{name, role}], eventId?}` | 201 `{uploadId, url, method: "PUT", headers: {"Content-Type", "Cache-Control"}, expiresAt}` — `url`은 이 파일 하나만 **PUT** 할 수 있는 SigV4 서명 주소(기본 10분, 크기·종류 서명) | 400 형식·일정, 409 `DIRECT_UPLOAD_OFF`(로컬 저장소 → `POST /api/jobs`로 올림), 413 크기(`MAX_UPLOAD_MB`), 429 올리는 중 5개 넘음, 503 저장소 |
+| 브라우저 → `PUT <url>` | 파일 그대로, `headers` 그대로 | 저장소 응답 200 | |
+| `POST /api/jobs/uploads/{uploadId}/complete` | — | 201 `Job` (상태 QUEUED, 변환 시작은 `POST /api/jobs/{id}/transcribe`) | 404 없음·남의 것·이미 끝냄, 409 아직 안 올라옴, 400 크기가 알린 것과 다름(객체 지움) |
+
+- 끝내지 않은 업로드는 `pending_upload_hours`(24시간) 뒤 객체와 함께 지운다 (서버 시작·업로드 시작 때). 작업 목록에는 보이지 않는다(`malmoa_uploads` 표).
+- 읽기 서명 주소는 만들지 않는다 — 원본·원문·회의록은 로그인 확인 뒤 백엔드가 전달.
+
 ### Job 객체
 ```ts
 {

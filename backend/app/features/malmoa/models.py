@@ -156,6 +156,24 @@ class LlmSetting(Base):
 
 
 
+
+class PendingUpload(Base):
+    """브라우저가 저장소(R2)에 바로 올리는 중인 파일 (통합 단계 5-2). 올리기가 끝났다고 알리면 jobs 행을 만들고 지운다.
+    끝내지 않은 것은 하루 뒤 객체와 함께 지운다 (api/jobs.py cleanup_uploads). 작업 목록에는 보이지 않는다."""
+
+    __tablename__ = "malmoa_uploads"
+
+    id: Mapped[str] = mapped_column(String(JOB_ID_LENGTH), primary_key=True)  # 확정되면 이 값이 작업 id 가 된다
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    file_name: Mapped[str] = mapped_column(String(255))
+    stored_name: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(16))  # upload | recording | image
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)  # 브라우저가 알린 크기 — 끝낼 때 저장소의 실제 크기와 같아야 한다
+    attendees: Mapped[list[dict]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("events.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
 class LlmUsage(Base):
     """AI 호출 기록: 회의록을 만들며 AI를 부를 때마다 한 줄 (실패한 시도 포함).
     작업을 지워도 남는다 (job_id만 비고 file_name은 그대로)"""

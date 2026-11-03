@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     minutes_chunk_chars: int = 12_000
 
     max_upload_mb: int = 500
+    # 직접 업로드 (MALMOA_FILES_BACKEND=s3, 통합 단계 5-2): 브라우저가 서명 주소로 저장소에 바로 올린다
+    upload_url_expires_seconds: int = 600  # 서명 주소로 PUT 을 시작할 수 있는 시간
+    pending_upload_hours: int = 24  # 끝내지 않은 업로드를 지우기까지
+    pending_upload_max: int = 5  # 회원 한 명이 동시에 올리는 중일 수 있는 파일 수
 
     # 작업 대기열 (services/worker.py, DB jobs 테이블). 이 서버가 가져가 처리할 일 — 비우면 작업자를 띄우지 않는다.
     # 예: 배포 서버 ["minutes"], Mac 작업자 ["transcribe"]

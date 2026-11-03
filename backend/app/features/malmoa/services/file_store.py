@@ -77,6 +77,9 @@ class FileStore(Protocol):
         """없으면 FileNotFoundError"""
         ...
     def exists(self, key: str) -> bool: ...
+    def size(self, key: str) -> int | None:
+        """바이트 크기. 없으면 None (직접 업로드가 끝났는지 확인용)"""
+        ...
     def delete(self, key: str) -> None:
         """없어도 오류 아님"""
         ...
@@ -149,6 +152,10 @@ class LocalStore:
     def exists(self, key: str) -> bool:
         return self.path(key).is_file()
 
+    def size(self, key: str) -> int | None:
+        p = self.path(key)
+        return p.stat().st_size if p.is_file() else None
+
     def delete(self, key: str) -> None:
         self.path(key).unlink(missing_ok=True)
 
@@ -212,6 +219,7 @@ class S3Store:
             aws_secret_access_key=settings.storage_s3_secret_access_key,
             config=Config(
                 s3={"addressing_style": "path"},  # Supabase 는 버킷을 주소 경로에 둔다
+                signature_version="s3v4",  # R2 는 SigV4 만 받는다. 서명 주소에 방법(PUT)·크기·종류가 묶인다 (기본값은 예전 SigV2 가 될 수 있음)
                 connect_timeout=10,
                 read_timeout=60,
                 retries={"max_attempts": 3},
@@ -258,11 +266,29 @@ class S3Store:
             body.close()
 
     def exists(self, key: str) -> bool:
+        return self.size(key) is not None
+
+    def size(self, key: str) -> int | None:
         try:
-            self._call("head_object", Key=key)
-            return True
+            return int(self._call("head_object", Key=key)["ContentLength"])
         except FileNotFoundError:
-            return False
+            return None
+
+    def presign_put(self, key: str, content_type: str, size: int, expires_seconds: int) -> str:
+        """브라우저가 이 키 하나에만 PUT 할 수 있는 서명 주소 (통합 단계 5-2 직접 업로드).
+        읽기 주소는 만들지 않는다 — 녹음·원문·회의록은 비공개, 내려받기는 로그인 확인 뒤 백엔드가 전달.
+        종류·크기·Cache-Control 을 서명에 넣어 다른 값으로는 올릴 수 없게 한다 (끝난 뒤 크기를 다시 확인한다)."""
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        try:
+            return self.client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type, "ContentLength": size, "CacheControl": "private, no-store"},
+                ExpiresIn=expires_seconds,
+                HttpMethod="PUT",
+            )
+        except (BotoCoreError, ClientError) as e:
+            raise StorageError("업로드 주소를 만들지 못했습니다") from e
 
     def delete(self, key: str) -> None:
         self._call("delete_object", Key=key)
