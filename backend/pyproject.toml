@@ -1,0 +1,57 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "soyounglee", email = "sensibly00@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.0",
+    "boto3>=1.43.119",
+    "fastapi>=0.143.3",
+    "langchain>=1.4.6",
+    "langchain-openai>=1.7.2",
+    "pillow>=13.0.0",
+    "psycopg[binary]>=3.3.6",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic-settings>=2.16.0",
+    "pydantic[email]>=2.14.1",
+    "pyjwt>=2.15.1",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.1.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI의 Depends(), Cookie() 등을 함수 기본값에 쓰는 것은 FastAPI의 정식 사용법입니다
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]

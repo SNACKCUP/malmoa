@@ -1,0 +1,93 @@
+/* MeerKit 디자인 토큰.
+   기본은 쿨 그레이 중립 톤. 로고 파랑(brand)은 포인트로만 아주 가끔 쓴다. */
+:root {
+  --mk-blue: #2c63fb;
+  --mk-tan: #da995e;
+  --mk-cream: #f9e2c5;
+
+  --mk-background: #f3f4f6;
+  --mk-foreground: #1b1d29;
+  --mk-card: #fafafb;
+  --mk-surface: #ffffff;
+  --mk-muted: #eceef1;
+  --mk-muted-foreground: #6a6e7a;
+  --mk-accent: #e9ebef;
+  --mk-border: #e3e5ea;
+  --mk-primary: #2a2c3b;
+  --mk-primary-foreground: #ffffff;
+  --mk-brand: var(--mk-blue);
+  --mk-destructive: #d6455d;
+  --mk-radius: 1rem;
+  --mk-shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(27, 29, 41, 0.04), 0 10px 28px -14px rgba(27, 29, 41, 0.14);
+
+  /* 모션: 모든 Meerkit 애니메이션은 이 곡선을 쓴다. 천천히 감속하며 부드럽게 멈춘다. */
+  --mk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mk-ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* 다크 모드. <html data-theme="dark">일 때 같은 토큰을 어두운 값으로 바꾼다 (theme: "shadcn"은 프로젝트의 .dark 변수를 따른다). */
+:root[data-theme="dark"]:not([data-mk-theme="shadcn"]) {
+  color-scheme: dark;
+  --mk-background: #0f1115;
+  --mk-foreground: #e8eaf0;
+  --mk-card: #151922;
+  --mk-surface: #1a1f29;
+  --mk-muted: #1e242e;
+  --mk-muted-foreground: #98a0ae;
+  --mk-accent: #242b37;
+  --mk-border: #2a313d;
+  --mk-primary: #e8eaf0;
+  --mk-primary-foreground: #12141a;
+  --mk-brand: #6b97ff;
+  --mk-destructive: #f06a80;
+  --mk-shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+}
+
+/* theme: "shadcn" — 프로젝트의 shadcn 기본 변수를 그대로 따른다. */
+:root[data-mk-theme="shadcn"] {
+  /* 뒤의 값은 프로젝트에 shadcn 변수가 없을 때 쓰는 shadcn 기본(neutral) 값 */
+  --mk-background: var(--background, #ffffff);
+  --mk-foreground: var(--foreground, #0a0a0a);
+  --mk-card: var(--card, #ffffff);
+  --mk-surface: var(--background, #ffffff);
+  --mk-muted: var(--muted, #f5f5f5);
+  --mk-muted-foreground: var(--muted-foreground, #737373);
+  --mk-accent: var(--accent, #f5f5f5);
+  --mk-border: var(--border, #e5e5e5);
+  --mk-primary: var(--primary, #171717);
+  --mk-primary-foreground: var(--primary-foreground, #fafafa);
+  --mk-brand: var(--primary, #171717);
+  --mk-destructive: var(--destructive, #e7000b);
+  --mk-radius: var(--radius, 0.625rem);
+  --mk-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+@theme inline {
+  --color-background: var(--mk-background);
+  --color-foreground: var(--mk-foreground);
+  --color-card: var(--mk-card);
+  --color-card-foreground: var(--mk-foreground);
+  --color-surface: var(--mk-surface);
+  --color-popover: var(--mk-surface);
+  --color-popover-foreground: var(--mk-foreground);
+  --color-primary: var(--mk-primary);
+  --color-primary-foreground: var(--mk-primary-foreground);
+  --color-brand: var(--mk-brand);
+  --color-muted: var(--mk-muted);
+  --color-muted-foreground: var(--mk-muted-foreground);
+  --color-accent: var(--mk-accent);
+  --color-accent-foreground: var(--mk-foreground);
+  --color-border: var(--mk-border);
+  --color-input: var(--mk-border);
+  --color-ring: var(--mk-brand);
+  --color-destructive: var(--mk-destructive);
+  --radius-sm: calc(var(--mk-radius) - 8px);
+  --radius-md: calc(var(--mk-radius) - 4px);
+  --radius-lg: var(--mk-radius);
+  --radius-xl: calc(var(--mk-radius) + 4px);
+  --radius-2xl: calc(var(--mk-radius) + 8px);
+  --radius-3xl: calc(var(--mk-radius) + 16px);
+  --font-sans: "Pretendard Variable", "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --shadow-soft: var(--mk-shadow-soft);
+}

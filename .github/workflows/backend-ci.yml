@@ -1,0 +1,32 @@
+name: backend-ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: starter
+          POSTGRES_PASSWORD: starter
+          POSTGRES_DB: starter_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://starter:starter@localhost:5432/starter_test
+      JWT_SECRET_KEY: ci-only-secret-key-at-least-32-bytes-long
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run alembic upgrade head
+      - run: uv run pytest

@@ -1,0 +1,25 @@
+# env
+.env
+*.env.local
+
+# python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+dist/
+
+# os / ide
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+# CLI 템플릿 (npm pack 직전에 sync-template이 만듦)
+packages/meerkit/template/
+
+# meerkit
+meerkit-setup.log
+meerkit-test.log

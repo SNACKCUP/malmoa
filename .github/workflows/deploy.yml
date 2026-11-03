@@ -1,0 +1,78 @@
+# 백엔드 운영 배포. 순서: 승인(production 환경) → 운영 DB 마이그레이션 → Render 배포 → 새 버전 확인
+# backend-ci 가 main 에서 통과하면 시작하고, Actions 화면에서 직접 실행할 수도 있습니다.
+# 자세한 설정 방법: docs/deployment.md
+#
+# 준비 (저장소 Settings → Environments → production):
+#   - Required reviewers  배포를 승인할 사람
+#   - Secret  PROD_DATABASE_URL       운영 DB 주소 (Supabase Session pooler, 5432)
+#   - Secret  RENDER_DEPLOY_HOOK_URL  Render 서비스 Settings → Deploy Hook 주소
+#   - Variable PROD_API_URL           예: https://api.meerkit.dev (배포 뒤 /health 확인에 씀)
+# 비밀 값이 없으면 아무것도 하지 않고 성공으로 끝납니다 (배포 준비 전 병합해도 안전).
+name: deploy
+on:
+  workflow_run:
+    workflows: [backend-ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # CI 가 실패했거나 main 이 아닌 실행은 건너뜁니다
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      API_URL: ${{ vars.PROD_API_URL }}
+      # 마이그레이션은 토큰을 만들지 않지만 설정 로딩에 필요한 값이라 실행마다 임의 값을 넣습니다
+      JWT_SECRET_KEY: deploy-job-${{ github.run_id }}-${{ github.run_attempt }}-unused
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+      - name: Check secrets
+        id: guard
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$DEPLOY_HOOK" ]; then
+            echo "::notice::PROD_DATABASE_URL 또는 RENDER_DEPLOY_HOOK_URL 이 없어 배포를 건너뜁니다."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v6
+        if: steps.guard.outputs.skip != 'true'
+      - run: uv sync --locked --no-dev
+        if: steps.guard.outputs.skip != 'true'
+      # 새 코드보다 DB 를 먼저 올립니다. 그래서 마이그레이션은 이전 코드와도 함께 돌아가게 만듭니다 (추가 먼저, 삭제는 나중)
+      - name: Migrate production DB
+        if: steps.guard.outputs.skip != 'true'
+        run: uv run alembic upgrade head
+      - name: Trigger Render deploy
+        if: steps.guard.outputs.skip != 'true'
+        run: curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
+      - name: Wait for new version
+        if: steps.guard.outputs.skip != 'true' && env.API_URL != ''
+        run: |
+          want="${SHA:0:7}"
+          for i in $(seq 1 60); do
+            got=$(curl -fsS "$API_URL/health" | sed -n 's/.*"commit":"\([0-9a-f]*\)".*/\1/p' || true)
+            if [ "$got" = "$want" ] && curl -fsS "$API_URL/health/ready" > /dev/null; then
+              echo "배포 완료: $want"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::10분 안에 새 버전($want)이 뜨지 않았습니다. Render 로그를 확인하세요."
+          exit 1

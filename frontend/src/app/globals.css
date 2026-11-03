@@ -1,0 +1,238 @@
+@import "tailwindcss";
+@import "../meerkit/styles/tokens.css";
+
+/* Tailwind의 dark: 변형을 <html data-theme="dark"> 기준으로 쓴다 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* 누를 수 있는 것은 손가락 커서. Tailwind 기본(preflight)은 버튼 커서를 기본 화살표로 바꿔 두므로 되돌린다 */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not(:disabled),
+  [role="checkbox"]:not(:disabled),
+  [role="radio"]:not(:disabled),
+  [role="menuitem"]:not([data-disabled]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input:is([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="file"]):not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+/* ── 스크롤바: 평소에는 숨겨 두고, 마우스를 올리면 얇고 둥근 막대가 나타난다 ── */
+.mk-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.mk-scroll:hover {
+  scrollbar-color: color-mix(in srgb, var(--mk-muted-foreground) 35%, transparent) transparent;
+}
+.mk-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.mk-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mk-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+  background-color: transparent;
+  transition: background-color 0.3s;
+}
+.mk-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--mk-muted-foreground) 35%, transparent);
+}
+.mk-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--mk-muted-foreground) 65%, transparent);
+}
+
+/* ── Meerkit 모션: 항상 부드럽게. 곡선과 길이는 tokens.css의 --mk-ease를 쓴다. ── */
+@keyframes mk-rise {
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes mk-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes mk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes mk-swap {
+  from { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes mk-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mk-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes mk-dialog-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes mk-dialog-out {
+  from { opacity: 1; transform: none; filter: blur(0); }
+  to { opacity: 0; transform: translateY(10px) scale(0.97); filter: blur(6px); }
+}
+
+@keyframes mk-pop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes mk-pop-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+@keyframes mk-pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.mk-pop { animation: mk-pop 0.3s var(--mk-ease) both; }
+
+@keyframes mk-accordion-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes mk-accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+.mk-accordion-content[data-state="open"] { animation: mk-accordion-down 0.5s var(--mk-ease) both; }
+.mk-accordion-content[data-state="closed"] { animation: mk-accordion-up 0.35s var(--mk-ease) both; }
+
+/* ── 로딩 표시 9종 (Loader). 색은 글자색(currentColor)을 따르고, 크기는 --ld 하나로 정한다 ── */
+.mk-ld { --ld: 24px; position: relative; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: var(--ld); height: var(--ld); }
+@keyframes mk-ld-spin { to { transform: rotate(360deg); } }
+@keyframes mk-ld-dash {
+  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+}
+@keyframes mk-ld-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-60%); opacity: 1; } }
+@keyframes mk-ld-bars { 0%, 40%, 100% { transform: scaleY(0.35); opacity: 0.5; } 20% { transform: scaleY(1); opacity: 1; } }
+@keyframes mk-ld-ripple { from { transform: scale(0.15); opacity: 0.9; } to { transform: scale(1); opacity: 0; } }
+@keyframes mk-ld-core { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.1); } }
+@keyframes mk-ld-cell { 0%, 100% { opacity: 0.2; transform: scale(0.75); } 30%, 55% { opacity: 1; transform: scale(1); } 85% { opacity: 0.2; transform: scale(0.75); } }
+@keyframes mk-ld-fade { from { opacity: 1; } to { opacity: 0.12; } }
+@keyframes mk-ld-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes mk-ld-morph {
+  0% { transform: rotate(0deg) scale(1); border-radius: 22%; }
+  50% { transform: rotate(180deg) scale(0.7); border-radius: 50%; }
+  100% { transform: rotate(360deg) scale(1); border-radius: 22%; }
+}
+@keyframes mk-skeleton { to { background-position: -200% 0; } }
+
+.mk-ld-ring > i { position: absolute; inset: 0; border: calc(var(--ld) / 10) solid color-mix(in srgb, currentColor 18%, transparent); border-top-color: currentColor; border-radius: 9999px; animation: mk-ld-spin 0.8s linear infinite; }
+.mk-ld-dash > svg { width: 100%; height: 100%; animation: mk-ld-spin 1.6s linear infinite; }
+.mk-ld-dash circle { stroke-dasharray: 1, 150; animation: mk-ld-dash 1.4s ease-in-out infinite; }
+.mk-ld-dots { width: calc(var(--ld) * 1.7); gap: calc(var(--ld) / 7); }
+.mk-ld-dots > i { width: calc(var(--ld) / 3.4); height: calc(var(--ld) / 3.4); border-radius: 9999px; background: currentColor; animation: mk-ld-bounce 1.2s ease-in-out infinite; }
+.mk-ld-bars { width: calc(var(--ld) * 1.2); gap: calc(var(--ld) / 9); }
+.mk-ld-bars > i { width: calc(var(--ld) / 8); height: 100%; border-radius: 9999px; background: currentColor; animation: mk-ld-bars 1.1s ease-in-out infinite; }
+.mk-ld-pulse > i { position: absolute; inset: 0; border: calc(var(--ld) / 14) solid currentColor; border-radius: 9999px; animation: mk-ld-ripple 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+.mk-ld-pulse > b { width: 28%; height: 28%; border-radius: 9999px; background: currentColor; animation: mk-ld-core 1.6s ease-in-out infinite; }
+.mk-ld-grid { display: grid; align-items: stretch; justify-content: stretch; grid-template-columns: repeat(3, 1fr); gap: calc(var(--ld) / 12); width: calc(var(--ld) * 0.85); height: calc(var(--ld) * 0.85); }
+.mk-ld-spokes > i { position: absolute; left: calc(50% - var(--ld) / 20); top: 0; width: calc(var(--ld) / 10); height: 28%; border-radius: 9999px; background: currentColor; transform-origin: 50% calc(var(--ld) / 2); animation: mk-ld-fade 1s linear infinite; }
+.mk-ld-grid > i { border-radius: 20%; background: currentColor; animation: mk-ld-cell 1.4s ease-in-out infinite; }
+.mk-ld-progress { width: calc(var(--ld) * 4); height: max(3px, calc(var(--ld) / 7)); overflow: hidden; border-radius: 9999px; background: color-mix(in srgb, currentColor 16%, transparent); }
+.mk-ld-progress > i { position: absolute; inset-block: 0; left: 0; width: 40%; border-radius: 9999px; background: currentColor; animation: mk-ld-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.mk-ld-morph > i { width: 62%; height: 62%; background: currentColor; animation: mk-ld-morph 1.8s ease-in-out infinite; }
+.mk-skeleton { background-image: linear-gradient(100deg, var(--mk-muted) 30%, color-mix(in srgb, var(--mk-muted) 40%, white) 50%, var(--mk-muted) 70%); background-size: 200% 100%; animation: mk-skeleton 1.6s linear infinite; }
+
+/* ── AI 컴포넌트: 입력창 글로우, 생각 중 구슬/점/반짝임 ── */
+@keyframes mk-glow-sweep {
+  to { background-position: 200% 0; }
+}
+@keyframes mk-dot-wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-35%); opacity: 1; }
+}
+@keyframes mk-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+
+.mk-glow {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 10%;
+  bottom: -16px;
+  height: 46px;
+  border-radius: 9999px;
+  filter: blur(24px);
+  opacity: 0;
+  background: linear-gradient(90deg, #2c63fb, #a78bfa, #f0b377, #6ee7d9, #2c63fb);
+  background-size: 200% 100%;
+  transition: opacity 0.7s var(--mk-ease);
+  animation: mk-glow-sweep 7s linear infinite;
+}
+.mk-glow[data-active="true"] { opacity: 0.5; }
+
+.mk-dot { display: inline-block; border-radius: 9999px; background: currentColor; animation: mk-dot-wave 1.3s ease-in-out infinite; }
+.mk-shimmer-text {
+  display: inline-block;
+  color: transparent;
+  background-image: linear-gradient(100deg, var(--mk-muted-foreground) 30%, var(--mk-foreground) 50%, var(--mk-muted-foreground) 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: mk-shimmer 2.4s linear infinite;
+}
+
+.mk-rise { animation: mk-rise 0.9s var(--mk-ease) both; }
+.mk-fade { animation: mk-fade 1.2s ease both; }
+.mk-float { animation: mk-float 7s ease-in-out infinite; }
+.mk-swap { animation: mk-swap 0.45s var(--mk-ease) both; }
+
+.mk-overlay[data-state="open"] { animation: mk-overlay-in 0.4s var(--mk-ease) both; }
+.mk-overlay[data-state="closed"] { animation: mk-overlay-out 0.28s ease both; }
+.mk-dialog[data-state="open"] { animation: mk-dialog-in 0.55s var(--mk-ease) both; }
+.mk-dialog[data-state="closed"] { animation: mk-dialog-out 0.3s var(--mk-ease-in) both; }
+
+.mk-menu { transform-origin: var(--radix-dropdown-menu-content-transform-origin); }
+.mk-menu[data-state="open"] { animation: mk-pop-in 0.35s var(--mk-ease) both; }
+.mk-menu[data-state="closed"] { animation: mk-pop-out 0.2s var(--mk-ease-in) both; }
+
+/* 모션 끄기: meerkit.config.ts의 motion: false, 또는 OS의 "동작 줄이기" 설정 */
+:root[data-mk-motion="off"] .mk-rise,
+:root[data-mk-motion="off"] .mk-fade,
+:root[data-mk-motion="off"] .mk-float,
+:root[data-mk-motion="off"] .mk-swap,
+:root[data-mk-motion="off"] .mk-overlay,
+:root[data-mk-motion="off"] [class*="mk-ld"],
+:root[data-mk-motion="off"] [class*="mk-ld"] *,
+:root[data-mk-motion="off"] .mk-skeleton,
+:root[data-mk-motion="off"] .mk-glow,
+:root[data-mk-motion="off"] .animate-ping,
+:root[data-mk-motion="off"] .mk-dot,
+:root[data-mk-motion="off"] .mk-shimmer-text,
+:root[data-mk-motion="off"] .mk-accordion-content,
+:root[data-mk-motion="off"] .mk-pop,
+:root[data-mk-motion="off"] .mk-menu,
+:root[data-mk-motion="off"] .mk-dialog {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="mk-ld"], [class*="mk-ld"] *, .mk-skeleton,
+  .mk-rise, .mk-fade, .mk-float, .mk-swap, .mk-overlay, .mk-dialog, .mk-menu, .mk-pop, .mk-accordion-content, .mk-glow, .mk-dot, .mk-shimmer-text, .animate-ping {
+    animation: none !important;
+  }
+}
