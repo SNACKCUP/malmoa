@@ -21,6 +21,15 @@
 
 ## 작업
 
+### 캘린더 구독 (ICS, 2026-11-03 통합 단계 5-6)
+
+| 요청 | 인증 | 응답 |
+|---|---|---|
+| `GET /api/calendar-feed` | 승인 회원 | `{enabled, createdAt}` |
+| `POST /api/calendar-feed` | 승인 회원 | 201 `{path: "/api/calendar-feed/<비밀값>.ics", createdAt}` — 주소는 이 응답에서만. 다시 부르면 새 주소, 예전 주소 404 |
+| `DELETE /api/calendar-feed` | 승인 회원 | 204 (끄기) |
+| `GET /api/calendar-feed/{비밀값}.ics` | **없음** (주소가 열쇠, 서버에는 SHA-256 만) | `text/calendar` (RFC 5545): 지난 30일~앞으로 400일, 제목·시각(종일은 날짜)·장소·메모·참석자·알람(VALARM). 녹음·원문·회의록 없음. 모르는 주소·탈퇴·정지·승인 취소 회원은 404 |
+
 ### Mac 작업자 API (2026-11-03 통합 단계 5-3) — 회원이 아닌 작업자 열쇠
 
 인증: `Authorization: Bearer <MALMOA_WORKER_TOKEN>` (서버 `.env`에는 해시 `MALMOA_WORKER_TOKEN_HASH`만, 없으면 503, 틀리면 401 — 회원 토큰도 401). 작업을 바꾸는 요청에는 `X-Malmoa-Worker: <claim 때 보낸 값>` — 가져간 작업자가 아니면 409.

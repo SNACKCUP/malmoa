@@ -14,6 +14,7 @@ export const keys = {
   events: ['events'] as const,
   eventRange: (from: Date, to: Date) => ['events', from.toISOString(), to.toISOString()] as const,
   calendarSync: ['calendar-sync'] as const,
+  calendarFeed: ['calendar-feed'] as const,
   llm: ['settings', 'llm'] as const,
   usage: ['usage'] as const,
 }
@@ -150,6 +151,20 @@ export function useSaveEvent() {
 export function useRetryEventSync() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: api.retryEventSync, onSuccess: () => qc.invalidateQueries({ queryKey: keys.events }) })
+}
+
+export function useCalendarFeed() {
+  return useQuery({ queryKey: keys.calendarFeed, queryFn: api.getCalendarFeed })
+}
+
+export function useCreateCalendarFeed() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: api.createCalendarFeed, onSuccess: () => void qc.invalidateQueries({ queryKey: keys.calendarFeed }) })
+}
+
+export function useDeleteCalendarFeed() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: api.deleteCalendarFeed, onSuccess: () => void qc.invalidateQueries({ queryKey: keys.calendarFeed }) })
 }
 
 export function useCalendarSync() {

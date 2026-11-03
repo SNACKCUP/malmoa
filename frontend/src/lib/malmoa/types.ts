@@ -39,6 +39,18 @@ export interface CalendarEvent extends EventInput {
 }
 
 /** Mac 캘린더 앱 → 아이폰 알림 내보내기 설정 */
+/** 캘린더 구독 주소 (ICS, 통합 단계 5-6) */
+export interface CalendarFeed {
+  enabled: boolean
+  createdAt: string | null
+}
+
+/** 새로 만든 구독 주소 — path 는 이 응답에서만 받을 수 있다 */
+export interface CalendarFeedCreated {
+  path: string
+  createdAt: string
+}
+
 export interface CalendarSync {
   enabled: boolean
   available: boolean // 서버가 Mac에서 도는지

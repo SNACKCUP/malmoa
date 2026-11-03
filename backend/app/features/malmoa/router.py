@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.features.malmoa.api import (
+    calendar_feed,
     events,
     jobs,
     llm_settings,
@@ -79,7 +80,7 @@ async def lifespan(app: FastAPI):
 
 
 router = APIRouter(lifespan=lifespan)
-for sub in (jobs, people, events, recorder, llm_settings, usage, worker):
+for sub in (jobs, people, events, calendar_feed, recorder, llm_settings, usage, worker):
     router.include_router(sub.router)
 
 

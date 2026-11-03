@@ -10,6 +10,8 @@ import { useAuthStore } from '@/meerkit/auth/store'
 import type {
   Attendee,
   CalendarEvent,
+  CalendarFeed,
+  CalendarFeedCreated,
   CalendarSync,
   EventInput,
   FiredReminder,
@@ -150,6 +152,17 @@ export const sendHeartbeat = async (micPermission: 'granted' | 'prompt' | 'denie
 
 /** 캘린더 앱에 다시 내보내기 (실패했을 때) */
 export const retryEventSync = (id: string) => json<CalendarEvent>(`/api/events/${id}/sync`, { method: 'POST' })
+
+// ---------- 캘린더 구독 (ICS) ----------
+
+export const getCalendarFeed = () => json<CalendarFeed>('/api/calendar-feed')
+
+/** 새 구독 주소 (예전 주소는 바로 무효). 주소는 이때 한 번만 받는다 */
+export const createCalendarFeed = () => json<CalendarFeedCreated>('/api/calendar-feed', { method: 'POST' })
+
+export const deleteCalendarFeed = async () => {
+  await send('/api/calendar-feed', { method: 'DELETE' })
+}
 
 export const getCalendarSync = () => json<CalendarSync>('/api/events/calendar-sync')
 

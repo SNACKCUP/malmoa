@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/malmoa/ui
 import { useHealth, useLlmSettings } from '@/hooks/malmoa/queries'
 import { Menu, OsWindow, StatusCell } from './app-shell'
 import { PeopleRoster } from './attendees'
+import { CalendarFeedCard } from './calendar-feed-card'
 import { CalendarSyncCard } from './calendar-sync-card'
 import { Notice, ToneBadge } from './common'
 import { LlmSettingsCard } from './llm-settings-card'
@@ -84,6 +85,8 @@ export function SettingsView() {
                 <PeopleRoster />
               </div>
             </Group>
+
+            <CalendarFeedCard />
 
             <CalendarSyncCard />
 

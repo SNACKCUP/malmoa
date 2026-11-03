@@ -15,7 +15,7 @@ export function CalendarSyncCard() {
   const name = s?.calendarName ?? 'Malmoa'
 
   return (
-    <Group title="아이폰으로 일정 알림 받기" className="scroll-mt-24">
+    <Group title="Mac 캘린더 앱으로 내보내기 (이 Mac 에서 실행할 때)" className="scroll-mt-24">
       <div id="calendar-sync" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="flex-1 basis-72 text-sm leading-relaxed">
@@ -37,7 +37,7 @@ export function CalendarSyncCard() {
         )}
         {s && !s.available && (
           <Notice tone="warning" icon={<AlertTriangle />}>
-            말모아 서버가 Mac이 아닌 곳에서 실행 중이라 쓸 수 없습니다.
+            말모아 서버가 Mac이 아닌 곳에서 실행 중이라 쓸 수 없습니다. 위의 ‘캘린더 구독’으로 휴대폰에서 일정과 알람을 받으세요.
           </Notice>
         )}
         {toggle.isError && (

@@ -36,6 +36,9 @@ class MalmoaProfile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     # 일정을 Mac 캘린더 앱으로 내보내 아이폰에서 알림 받기 (설정 화면, 기본 끔)
     calendar_sync: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    # 캘린더 구독(ICS) 비밀 주소의 SHA-256 해시 (통합 단계 5-6). 주소 자체는 만들 때 한 번만 보여 주고 저장하지 않는다. 비면 꺼짐
+    ics_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    ics_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
