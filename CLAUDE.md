@@ -446,7 +446,8 @@ MAX_UPLOAD_MB=500
 - DB나 파일을 옮기거나 바꾸기 전에 백업한다 (`~/Desktop/legacy/Malmoa/backups/`, 권한 600). 데이터 작업은 미리보기 → 백업 → 승인 → 실행 → 검증.
 - 비밀 값은 `.env`에만. 주소·포트·비밀키를 코드에 쓰지 않는다.
 - 녹음·원문·회의록은 비공개다. 공개 주소를 만들지 않는다 (업로드 전용 서명 주소만 허용, 내려받기는 로그인 확인 뒤 백엔드가 전달).
-- Mac 작업자에는 작업자 전용 열쇠만 둔다. DB 비밀번호·저장소 쓰기 키를 두지 않는다.
+- Mac 작업자에는 작업자 전용 열쇠만 둔다. DB 비밀번호·저장소 쓰기 키를 두지 않는다. 작업자 프로그램 `scripts/malmoa_worker.py`(설정 `~/.malmoa-worker.env`)는 DB·meerkit 모듈을 불러오지 않아야 한다 — 변환 코드(`transcriber.py`)·`config.py`에 DB import 를 넣지 않는다 (`test_worker_program_needs_no_db_or_secrets`, 트러블 #42).
+- 운영(`APP_ENV=production`) 설정 검사는 meerkit `main.py` 대신 `app/features/malmoa/checks.py`(말모아 lifespan). 새 말모아 설정을 만들면 `backend/.env.example`에도 적고, 운영에서 위험하면 검사에 넣는다.
 
 ### 실행·시험
 

@@ -24,6 +24,7 @@ from app.features.malmoa.api import (
     worker,
 )
 from app.features.malmoa.api.jobs import cleanup_uploads
+from app.features.malmoa.checks import check_production
 from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import engine
 from app.features.malmoa.schemas.jobs import ErrorResponse, Health
@@ -38,6 +39,7 @@ log = logging.getLogger("malmoa")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    check_production()  # APP_ENV=production 에서 말모아 설정이 위험하면 시작하지 않는다 (checks.py)
     settings = get_settings()
     # 변환 임시 폴더는 항상 로컬. 원본·원문·회의록은 저장소(MALMOA_FILES_BACKEND) — 쓸 수 없으면 이유를 알리고 시작하지 않는다
     settings.work_dir.mkdir(parents=True, exist_ok=True)
