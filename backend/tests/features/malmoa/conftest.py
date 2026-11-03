@@ -25,6 +25,8 @@ os.environ["OPENAI_API_KEY"] = ""
 # 테스트 중 알람 검사기·실제 Mac 알림을 띄우지 않는다 (검사기는 tick()을 직접 불러 시험)
 os.environ["REMINDERS_ENABLED"] = "false"
 os.environ["MAC_NOTIFICATIONS"] = "false"
+# 작업자는 켠다 — 개발 .env 는 전환 전까지 WORKER_TASKS=[] 이다 (통합계획 단계 2). 테스트가 .env 에 따라 달라지지 않게 여기서 정한다
+os.environ["WORKER_TASKS"] = '["transcribe", "minutes"]'
 
 STORAGE_MODE = "s3" if os.environ.get("MALMOA_FILES_BACKEND") == "s3" else "local"
 S3_TEST_BUCKET = "malmoa-test-private"
