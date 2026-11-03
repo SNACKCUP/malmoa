@@ -2,6 +2,7 @@
 
 import io
 
+import pytest
 from docx import Document
 
 from app.features.malmoa.config import get_settings
@@ -94,3 +95,41 @@ def test_markdown_parsing():
     kinds = [b.kind for b in parse(MINUTES) if b.kind != "blank"]
     assert kinds == ["h1", "bullet", "h2", "bullet", "rule", "note"]
     assert runs("**굵게** 보통 **둘") == [("굵게", True), (" 보통 **둘", False)]
+
+
+# ── 배포 서버(Linux)에서도 PDF·사진 (통합 단계 5-4·5-5) ──
+
+
+def test_pdf_uses_bundled_korean_font_without_mac_fonts(monkeypatch):
+    """Mac 글꼴이 없는 서버에서도 함께 배포한 나눔고딕으로 한글 PDF 를 만든다"""
+    from app.features.malmoa.services import export
+
+    monkeypatch.setattr(export, "PDF_FONTS", export.PDF_FONTS[:1])  # 나눔고딕만
+    assert export.PDF_FONTS[0][0].is_file() and export.PDF_FONTS[0][2].is_file()
+    pdf = export.to_pdf("# 회의록\n\n**결정** 금요일까지 화면 이식\n- 담당: 확인 필요")
+    assert pdf.startswith(b"%PDF") and b"NanumGothic" in pdf
+
+
+def test_pdf_without_any_font_is_clear_error(monkeypatch, tmp_path):
+    from app.features.malmoa.services import export
+
+    missing = tmp_path / "none.ttf"
+    monkeypatch.setattr(export, "PDF_FONTS", [(missing, 0, missing, 0)])
+    with pytest.raises(export.ExportError):
+        export.to_pdf("# 회의록")
+
+
+def test_photo_text_recognition_is_mac_only(client, monkeypatch):
+    """Linux 서버에서 사진 작업이 돌면 알 수 없는 오류 대신 'Mac 작업자에서만' 안내로 실패한다"""
+    from app.features.malmoa.config import get_settings
+    from app.features.malmoa.services import ocr
+    from app.features.malmoa.services.transcriber import transcribe_job
+    from app.features.malmoa.store import JobStore
+
+    monkeypatch.setattr(ocr.sys, "platform", "linux")
+    client.app.state.worker.stop()
+    res = client.post("/api/jobs", files={"file": ("보드.png", b"\x89PNG fake", "image/png")})
+    job_id = res.json()["id"]
+    transcribe_job(job_id, JobStore(), get_settings())
+    job = client.get(f"/api/jobs/{job_id}").json()
+    assert job["status"] == "FAILED" and job["errorMessage"] == ocr.NOT_ON_MAC

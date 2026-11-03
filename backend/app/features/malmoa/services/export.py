@@ -16,10 +16,13 @@ from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 from fpdf import FPDF
 
-# PDF에 넣을 한글 글꼴 (Mac 기본 글꼴). (파일, 일반체 번호, 굵은체 번호) — TTC는 묶음 안의 번호
+# PDF에 넣을 한글 글꼴, 앞에서부터 있는 것을 쓴다. (일반체 파일, 번호, 굵은체 파일, 번호) — TTC는 묶음 안의 번호
+# 함께 배포하는 나눔고딕(OFL, fonts/README.md)을 먼저 써서 Mac·배포 서버(Linux)의 PDF 모양을 같게 한다 (통합 단계 5-5)
+FONTS_DIR = Path(__file__).resolve().parents[1] / "fonts"
 PDF_FONTS = [
-    (Path("/System/Library/Fonts/AppleSDGothicNeo.ttc"), 0, 6),
-    (Path("/System/Library/Fonts/Supplemental/AppleGothic.ttf"), 0, 0),
+    (FONTS_DIR / "NanumGothic-Regular.ttf", 0, FONTS_DIR / "NanumGothic-Bold.ttf", 0),
+    (Path("/System/Library/Fonts/AppleSDGothicNeo.ttc"), 0, Path("/System/Library/Fonts/AppleSDGothicNeo.ttc"), 6),
+    (Path("/System/Library/Fonts/Supplemental/AppleGothic.ttf"), 0, Path("/System/Library/Fonts/Supplemental/AppleGothic.ttf"), 0),
 ]
 WORD_FONT = "Apple SD Gothic Neo"  # Windows Word에는 없어서 맑은 고딕 등으로 대신 보인다
 
@@ -110,11 +113,11 @@ def to_docx(markdown: str) -> bytes:
 
 
 def _pdf() -> FPDF:
-    for path, regular, bold in PDF_FONTS:
-        if path.is_file():
+    for regular, regular_no, bold, bold_no in PDF_FONTS:
+        if regular.is_file() and bold.is_file():
             pdf = FPDF(format="A4")
-            pdf.add_font("ko", "", str(path), collection_font_number=regular)
-            pdf.add_font("ko", "B", str(path), collection_font_number=bold)
+            pdf.add_font("ko", "", str(regular), collection_font_number=regular_no)
+            pdf.add_font("ko", "B", str(bold), collection_font_number=bold_no)
             return pdf
     raise ExportError("PDF에 쓸 한글 글꼴을 찾지 못했습니다. Word나 Markdown으로 받아 주세요.")
 

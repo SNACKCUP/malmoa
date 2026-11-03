@@ -4,9 +4,11 @@ macOS 내장 글자 인식(Apple Vision)을 이 Mac 안에서 실행한다. 사�
 결과는 음성 원문과 같은 형식(segments)으로 돌려줘, 결과 화면·복사·회의록 작성을 그대로 쓴다.
 """
 
+import sys
 from pathlib import Path
 
 LOW_CONFIDENCE = 0.4  # 이보다 낮으면 화면에서 '확인 필요'로 표시
+NOT_ON_MAC = "사진 글자 인식은 Mac 작업자에서만 할 수 있습니다. Mac 작업자가 켜져 있으면 다시 시도해 주세요."
 
 
 class OcrError(Exception):
@@ -26,9 +28,15 @@ def _orientation(path: Path) -> int:
 
 
 def read_text(path: Path) -> list[dict]:
-    """사진의 글자를 위→아래, 왼쪽→오른쪽 순서의 줄 목록으로 돌려준다."""
-    import Vision
-    from Foundation import NSURL
+    """사진의 글자를 위→아래, 왼쪽→오른쪽 순서의 줄 목록으로 돌려준다.
+    Apple Vision 은 macOS 에만 있다 — 배포 서버(Linux)에서는 하지 않고 Mac 작업자가 한다 (통합 단계 5-4)."""
+    if sys.platform != "darwin":
+        raise OcrError(NOT_ON_MAC)
+    try:
+        import Vision
+        from Foundation import NSURL
+    except ImportError:  # Mac 이지만 작업자 의존성(worker 그룹)이 없음
+        raise OcrError("이 Mac 에 글자 인식 모듈이 없습니다. backend 폴더에서 uv sync 를 실행하세요.") from None
 
     request = Vision.VNRecognizeTextRequest.alloc().init()
     request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
