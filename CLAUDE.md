@@ -431,7 +431,7 @@ MAX_UPLOAD_MB=500
 
 - 백엔드: FastAPI + SQLAlchemy + Alembic, Python 3.12 (`backend/`). 말모아 기능은 **`backend/app/features/malmoa/` 아래에만** 둔다 (`api/`, `services/`, `schemas/`, `config.py`, `db.py`, `deps.py`, `models.py`, `router.py`). 킷 밖 새 패키지는 `tests/test_import_rules.py`가 막는다. 새 코드는 router → service → repository 방향(SQL은 repository)을 따른다 — 옮겨 온 legacy 코드는 아직 아니다 (계획 문서 단계 1 결과).
 - 말모아 설정(`app/features/malmoa/config.py`)은 meerkit 과 같은 `backend/.env`를 읽는다. **meerkit 설정과 같은 이름의 필드를 만들지 않는다** — 이름이 같으면 meerkit 값을 읽어 버린다 (트러블 이슈 #33). 저장소는 `MALMOA_FILES_BACKEND`·`MALMOA_FILES_DIR`, S3 접속 정보만 meerkit 과 공유.
-- 프런트: Next.js 16 (`frontend/`). 말모아 화면은 `src/app/(service)/`, 말모아 컴포넌트는 `src/components/malmoa/`, 98 OS 부품은 `src/components/malmoa/ui/`. 그 밖의 말모아 코드는 `src/lib/malmoa/`·`src/hooks/malmoa/`·`src/stores/malmoa/`. 98 스타일은 `src/components/malmoa/malmoa.css` — 색·모서리·글꼴은 `.malmoa-98`(말모아 화면) 안에서만 켜지게 `--m98-*` 변수로 두고, `:root`의 shadcn·meerkit 변수를 직접 바꾸지 않는다. 말모아 API 는 같은 출처 `/api`(Next 프록시).
+- 프런트: Next.js 16 (`frontend/`). 말모아 화면은 `src/app/(service)/`, 말모아 컴포넌트는 `src/components/malmoa/`, 98 OS 부품은 `src/components/malmoa/ui/`. 그 밖의 말모아 코드는 `src/lib/malmoa/`·`src/hooks/malmoa/`·`src/stores/malmoa/`. 이용약관·처리방침 본문은 `src/components/malmoa/legal/content.ts`(meerkit 본문은 킷이라 안 씀) — 문구를 바꾸면 버전을 올리고 Alembic 으로 `terms` 새 버전 행을 넣는다. 98 스타일은 `src/components/malmoa/malmoa.css` — 색·모서리·글꼴은 `.malmoa-98`(말모아 화면) 안에서만 켜지게 `--m98-*` 변수로 두고, `:root`의 shadcn·meerkit 변수를 직접 바꾸지 않는다. 말모아 API 는 같은 출처 `/api`(Next 프록시).
 - DB: PostgreSQL 하나 (로컬은 `docker-compose.yml`의 db, `127.0.0.1:5433`). 스키마 변경은 Alembic 마이그레이션으로만.
 - 로그인·회원·역할: meerkit 그대로 (`app.auth.deps.get_current_user`, `app.core.principal.require_role`, 프런트 `@/meerkit`). 말모아는 회원 표를 따로 두지 않고 `users.id`(정수)를 FK로 쓴다.
 

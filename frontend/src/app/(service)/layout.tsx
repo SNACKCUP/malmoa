@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 import { Public_Sans, Space_Grotesk, Space_Mono } from 'next/font/google'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
@@ -9,14 +8,6 @@ import { MalmoaProviders } from '@/components/malmoa/providers'
 const publicSans = Public_Sans({ variable: '--font-public-sans', subsets: ['latin'] })
 const spaceGrotesk = Space_Grotesk({ variable: '--font-space-grotesk', subsets: ['latin'], weight: ['700'] })
 const spaceMono = Space_Mono({ variable: '--font-space-mono', subsets: ['latin'], weight: ['400', '700'] })
-
-export const metadata: Metadata = {
-  title: {
-    default: '말모아 — 녹음은 글로, 회의는 기록으로.',
-    template: '%s · 말모아',
-  },
-  description: '회의 녹음을 텍스트로 변환하고 AI로 회의록을 정리하는 서비스',
-}
 
 /**
  * 요청마다 그리는 화면이라고 알린다. 말모아 화면은 AppShell 이 브라우저에서만 그려서(use(browser())) 서버 미리 렌더에는

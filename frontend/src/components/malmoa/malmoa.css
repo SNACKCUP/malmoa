@@ -158,6 +158,23 @@
   color: #000;
 }
 
+/* 알림 상자(루트의 meerkit Toaster)도 말모아 화면에 있는 동안은 98 대화상자로 */
+:root:has(.malmoa-98) [data-sonner-toast][data-styled="true"] {
+  border-radius: 0;
+  border: 0;
+  background: var(--color-face);
+  color: #000;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root:has(.malmoa-98) [data-sonner-toast][data-styled="true"] [data-close-button] {
+  border-radius: 0;
+  background: var(--color-face);
+  border: 1px solid #000;
+  color: #000;
+}
+
 /* 스크롤바도 회색 입체로 */
 :root:has(.malmoa-98) {
   scrollbar-color: #c0c0c0 #dfdfdf;

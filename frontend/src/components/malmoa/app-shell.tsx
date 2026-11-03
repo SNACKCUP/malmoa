@@ -8,7 +8,7 @@ import { createContext, use, useContext, useEffect, useRef, useState, type React
 import { browser } from 'react-dom'
 import { useHealth, useJobs } from '@/hooks/malmoa/queries'
 import { cn } from '@/lib/utils'
-import { useAuth, useLogout } from '@/meerkit'
+import { isAdminUser, useAuth, useLogout } from '@/meerkit'
 import { useAuthStore } from '@/meerkit/auth/store'
 import { useRecorderBusy } from '@/stores/malmoa/recorderBusy'
 import { Brand } from './common'
@@ -214,6 +214,7 @@ function Desktop({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const logout = useLogout()
   const signOut = () => logout.mutate()
+  const admin = isAdminUser(user)
 
   return (
     <WindowContext value={windowState}>
@@ -269,6 +270,7 @@ function Desktop({ children }: { children: ReactNode }) {
                   { label: '새 녹음', href: '/' },
                   { label: '파일 업로드 & 변환', href: '/upload' },
                   { label: '회의 작업 목록', href: '/jobs' },
+                  { label: '내 정보', href: '/me' },
                   { label: '로그아웃', onSelect: signOut },
                 ]}
               />
@@ -298,6 +300,7 @@ function Desktop({ children }: { children: ReactNode }) {
                 items={[
                   { label: '시스템 설정', href: '/settings' },
                   { label: '아이폰 일정 알림', href: '/settings#calendar-sync' },
+                  ...(admin ? [{ label: '회원 관리 (관리자)', href: '/admin/members' }] : []),
                 ]}
               />
               <Menu
@@ -313,9 +316,9 @@ function Desktop({ children }: { children: ReactNode }) {
           </div>
           <div className="flex min-w-0 shrink-0 items-center gap-1">
             {user && (
-              <span className="max-w-32 truncate bg-white px-1 text-[11px] w98-in" title={`${user.name} (${user.email})`}>
+              <Link href="/me" className="max-w-32 truncate bg-white px-1 text-[11px] w98-in hover:underline" title={`내 정보: ${user.name} (${user.email})`}>
                 👤 {user.name}
-              </span>
+              </Link>
             )}
             <span className="hidden shrink-0 bg-white px-1 font-mono text-[10px] font-bold text-[#006a6a] uppercase w98-in sm:inline">
               LOCAL: {health.data ? `WHISPER-${health.data.whisperModel}` : health.isError ? '서버 연결 안 됨' : '확인 중'}
@@ -358,8 +361,20 @@ function Desktop({ children }: { children: ReactNode }) {
                       </Link>
                     </li>
                   ))}
+                  {admin && (
+                    <li role="none">
+                      <Link role="menuitem" href="/admin/members" onClick={() => setStartOpen(false)} className="flex items-center gap-2 border-t border-shade px-2 py-1.5 shadow-[inset_0_1px_#fff] hover:bg-[#000080] hover:text-white">
+                        👥 회원 관리
+                      </Link>
+                    </li>
+                  )}
                   <li role="none">
-                    <Link role="menuitem" href="/guide" onClick={() => setStartOpen(false)} className="flex items-center gap-2 border-t border-shade px-2 py-1.5 shadow-[inset_0_1px_#fff] hover:bg-[#000080] hover:text-white">
+                    <Link role="menuitem" href="/me" onClick={() => setStartOpen(false)} className="flex items-center gap-2 border-t border-shade px-2 py-1.5 shadow-[inset_0_1px_#fff] hover:bg-[#000080] hover:text-white">
+                      👤 내 정보
+                    </Link>
+                  </li>
+                  <li role="none">
+                    <Link role="menuitem" href="/guide" onClick={() => setStartOpen(false)} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#000080] hover:text-white">
                       ❓ 사용 안내
                     </Link>
                   </li>

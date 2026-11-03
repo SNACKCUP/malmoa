@@ -5,23 +5,23 @@ import { MeerkitProvider, meerkitConfig, themeInitScript } from "@/meerkit";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-const TITLE = "Meerkit — 인증과 유저 관리를 갖춘 AI 서비스 스타터킷";
-const DESCRIPTION = "회원가입, 로그인, 권한, 관리자 화면과 이를 받쳐 주는 백엔드를 명령어 한 줄로 시작하는 스타터킷입니다. Next.js와 FastAPI로 만들었고, 설명서가 함께 있습니다.";
+const TITLE = "말모아 — 녹음은 글로, 회의는 기록으로.";
+const DESCRIPTION = "회의를 녹음하거나 녹음 파일을 올리면 음성을 텍스트로 바꾸고, AI가 논의·결정 사항과 할 일을 회의록으로 정리해 주는 서비스입니다.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: TITLE, template: "%s | Meerkit" },
+  title: { default: TITLE, template: "%s · 말모아" },
   description: DESCRIPTION,
-  applicationName: "Meerkit",
-  keywords: ["Meerkit", "미어킷", "스타터킷", "회원가입", "로그인", "인증", "유저 관리", "권한 관리", "Next.js", "FastAPI", "AI 서비스", "create-meerkit"],
-  category: "technology",
+  applicationName: "말모아",
+  keywords: ["말모아", "Malmoa", "회의록", "회의 녹음", "음성 텍스트 변환", "받아쓰기", "Whisper", "AI 회의록", "회의 요약"],
+  category: "productivity",
   alternates: { canonical: "/" },
-  openGraph: { type: "website", locale: "ko_KR", siteName: "Meerkit", url: "/", title: TITLE, description: DESCRIPTION },
+  openGraph: { type: "website", locale: "ko_KR", siteName: "말모아", url: "/", title: TITLE, description: DESCRIPTION },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
   formatDetection: { telephone: false, email: false, address: false },
 };
 
-export const viewport: Viewport = { themeColor: "#F7F3E8" };
+export const viewport: Viewport = { themeColor: "#008080" }; // 말모아 98 바탕화면 청록
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
