@@ -13,7 +13,15 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from app.features.malmoa.api import events, jobs, llm_settings, people, recorder, usage
+from app.features.malmoa.api import (
+    events,
+    jobs,
+    llm_settings,
+    people,
+    recorder,
+    usage,
+    worker,
+)
 from app.features.malmoa.api.jobs import cleanup_uploads
 from app.features.malmoa.config import get_settings
 from app.features.malmoa.db import engine
@@ -71,7 +79,7 @@ async def lifespan(app: FastAPI):
 
 
 router = APIRouter(lifespan=lifespan)
-for sub in (jobs, people, events, recorder, llm_settings, usage):
+for sub in (jobs, people, events, recorder, llm_settings, usage, worker):
     router.include_router(sub.router)
 
 

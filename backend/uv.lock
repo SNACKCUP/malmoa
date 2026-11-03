@@ -196,6 +196,7 @@ dev = [
     { name = "ruff" },
 ]
 worker = [
+    { name = "httpx" },
     { name = "openai-whisper" },
     { name = "pyobjc-framework-vision", marker = "sys_platform == 'darwin'" },
 ]
@@ -233,6 +234,7 @@ dev = [
     { name = "ruff", specifier = ">=0.17.1" },
 ]
 worker = [
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "openai-whisper", specifier = ">=20250625" },
     { name = "pyobjc-framework-vision", marker = "sys_platform == 'darwin'", specifier = ">=12.2.2" },
 ]

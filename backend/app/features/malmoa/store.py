@@ -5,10 +5,7 @@ JobStore는 요청 처리와 백그라운드 작업자 양쪽에서 쓰이므로
 작업 대기열도 jobs 테이블에 있다 (enqueue → claim → heartbeat → release, 끊기면 recover_stale).
 """
 
-import json
-import os
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 from sqlalchemy import select, update
 
@@ -23,13 +20,6 @@ STALE_FAILED = "작업 중 서버가 여러 번 멈춰 중단했습니다. 다�
 
 def now() -> datetime:
     return datetime.now(UTC)
-
-
-def write_json_atomic(path: Path, data: object) -> None:
-    """임시 파일에 쓴 뒤 교체해, 중간에 끊겨도 파일이 깨지지 않게 한다."""
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
 
 
 def _key(job_id: str) -> str | None:

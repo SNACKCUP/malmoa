@@ -17,11 +17,14 @@ import logging
 import shutil
 import subprocess
 import wave
+from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
 
 from app.features.malmoa.config import Settings
+from app.features.malmoa.fileutil import write_json_atomic
 from app.features.malmoa.schemas.jobs import JobStatus
 from app.features.malmoa.services.file_store import (
     TEXT,
@@ -37,7 +40,9 @@ from app.features.malmoa.services.speech_engines import (
     enabled,
     get_engine,
 )
-from app.features.malmoa.store import JobStore, write_json_atomic
+
+if TYPE_CHECKING:  # Mac 작업자는 DB 없이 이 모듈을 쓴다 — 실행 중에는 store(DB)를 불러오지 않는다
+    from app.features.malmoa.store import JobStore
 
 log = logging.getLogger(__name__)
 
@@ -121,36 +126,91 @@ def write_transcript(settings: Settings, job_id: str, segments: list[dict], *, t
     put_text(files, txt_key, "\n".join(lines) + "\n", TEXT)
 
 
-def _read_image(job_id: str, stored_name: str, store: JobStore, settings: Settings) -> None:
+class JobIO(Protocol):
+    """변환 한 건이 바깥과 주고받는 것. 과정(run_transcription)은 하나이고, 주고받는 방법만 다르다 (통합 단계 5-3):
+    서버는 LocalJobIO(DB·저장소에 바로), Mac 작업자는 작업자 API(scripts/malmoa_worker.py RemoteJobIO)."""
+
+    def has_transcript(self) -> bool:
+        """완료된 원문이 이미 있으면 다시 변환하지 않는다"""
+        ...
+
+    def report(self, *, start: bool = False, stage: str | None = None, progress: int | None = None, duration_sec: float | None = None) -> None:
+        """진행 상황 (준 값만 바꾼다). start=True 면 '변환 중'으로 바꾸고 예전 오류를 지운다"""
+        ...
+
+    def original(self) -> AbstractContextManager[Path]:
+        """with io.original() as path: 원본 파일. 없으면 FileNotFoundError"""
+        ...
+
+    def finish(self, segments: list[dict] | None, *, timed: bool, stage: str) -> None:
+        """원문 저장(segments 가 None 이면 이미 있는 원문을 그대로 씀) + 완료 표시"""
+        ...
+
+    def fail(self, message: str) -> None: ...
+
+
+class LocalJobIO:
+    """서버 안에서: 작업 기록은 DB(JobStore), 원본·원문은 저장소(get_store)"""
+
+    def __init__(self, job_id: str, stored_name: str, store: "JobStore", settings: Settings):
+        self.job_id, self.stored_name, self.store, self.settings = job_id, stored_name, store, settings
+
+    def has_transcript(self) -> bool:
+        return get_store().exists(transcript_keys(self.job_id)[0])
+
+    def report(self, *, start: bool = False, stage: str | None = None, progress: int | None = None, duration_sec: float | None = None) -> None:
+        fields: dict = {k: v for k, v in (("stage", stage), ("progress", progress), ("duration_sec", duration_sec)) if v is not None}
+        if start:
+            fields |= {"status": JobStatus.TRANSCRIBING, "error_message": None}
+        self.store.update(self.job_id, **fields)
+
+    def original(self) -> AbstractContextManager[Path]:
+        return get_store().local_copy(upload_key(self.stored_name))
+
+    def finish(self, segments: list[dict] | None, *, timed: bool, stage: str) -> None:
+        if segments is not None:
+            write_transcript(self.settings, self.job_id, segments, timed=timed)
+        self.store.update(self.job_id, status=JobStatus.COMPLETED, progress=None, stage=stage, transcript_ready=True, error_message=None)
+
+    def fail(self, message: str) -> None:
+        self.store.update(self.job_id, status=JobStatus.FAILED, progress=None, stage=None, error_message=message)
+
+
+def _read_image(job_id: str, io: JobIO) -> None:
     """화이트보드 사진: 글자 인식 결과를 음성 원문과 같은 형식으로 저장"""
     try:
-        store.update(job_id, status=JobStatus.TRANSCRIBING, progress=0, stage="사진에서 글자 읽는 중", error_message=None)
-        with get_store().local_copy(upload_key(stored_name)) as photo:
+        io.report(start=True, progress=0, stage="사진에서 글자 읽는 중")
+        with io.original() as photo:
             segments = read_text(photo)
-        write_transcript(settings, job_id, segments, timed=False)
-        store.update(job_id, status=JobStatus.COMPLETED, progress=None, stage="글자 읽기 완료", transcript_ready=True)
+        io.finish(segments, timed=False, stage="글자 읽기 완료")
         log.info("사진 글자 읽기 완료: %s (%d줄)", job_id, len(segments))
     except OcrError as e:
-        store.update(job_id, status=JobStatus.FAILED, progress=None, stage=None, error_message=str(e))
+        io.fail(str(e))
+    except FileNotFoundError:
+        io.fail("원본 사진이 없습니다. 다시 올려 주세요.")
     except Exception:
         log.exception("사진 글자 읽기 중 오류: %s", job_id)
-        store.update(job_id, status=JobStatus.FAILED, progress=None, stage=None, error_message="사진에서 글자를 읽는 중 오류가 발생했습니다. 다시 시도해 주세요.")
+        io.fail("사진에서 글자를 읽는 중 오류가 발생했습니다. 다시 시도해 주세요.")
 
 
-def transcribe_job(job_id: str, store: JobStore, settings: Settings) -> None:
+def transcribe_job(job_id: str, store: "JobStore", settings: Settings) -> None:
+    """서버 안의 작업자가 부른다 (DB·저장소에 바로)"""
     job = store.get(job_id)
     if job is None:
         return
+    run_transcription(job_id, job.source, settings, LocalJobIO(job_id, job.stored_name, store, settings))
 
-    files = get_store()
-    if files.exists(transcript_keys(job_id)[0]):  # 완료된 결과 재사용
-        store.update(job_id, status=JobStatus.COMPLETED, progress=None, stage="변환 완료", transcript_ready=True, error_message=None)
+
+def run_transcription(job_id: str, source: str, settings: Settings, io: JobIO) -> None:
+    """변환 한 건 (음성: Whisper 구간 변환, 사진: 글자 인식). 결과·오류는 모두 io 로 알린다"""
+    if io.has_transcript():  # 완료된 결과 재사용
+        io.finish(None, timed=True, stage="변환 완료")
         return
 
-    if job.source == "image":
-        return _read_image(job_id, job.stored_name, store, settings)
+    if source == "image":
+        return _read_image(job_id, io)
     if not enabled(settings):
-        store.update(job_id, status=JobStatus.FAILED, progress=None, stage=None, error_message=DISABLED_MESSAGE)
+        io.fail(DISABLED_MESSAGE)
         return
 
     work = settings.work_dir / job_id
@@ -158,10 +218,10 @@ def transcribe_job(job_id: str, store: JobStore, settings: Settings) -> None:
     wav_path = work / "audio.wav"
 
     try:
-        store.update(job_id, status=JobStatus.TRANSCRIBING, progress=0, stage="오디오 준비 중", error_message=None)
+        io.report(start=True, progress=0, stage="오디오 준비 중")
         if not wav_path.is_file():
             try:
-                with files.local_copy(upload_key(job.stored_name)) as original:
+                with io.original() as original:
                     convert_to_wav(original, wav_path)
             except FileNotFoundError:
                 raise TranscribeError("원본 파일이 없습니다. 다시 올려 주세요.") from None
@@ -180,7 +240,7 @@ def transcribe_job(job_id: str, store: JobStore, settings: Settings) -> None:
                 bounds = plan_boundaries(wav, settings.segment_minutes * 60 * SAMPLE_RATE)
                 write_json_atomic(plan_path, bounds)
             n_parts = len(bounds) - 1
-            store.update(job_id, duration_sec=round(duration, 1))
+            io.report(duration_sec=round(duration, 1))
 
             engine = None
             for i in range(n_parts):
@@ -190,10 +250,10 @@ def transcribe_job(job_id: str, store: JobStore, settings: Settings) -> None:
                 if engine is None:
                     engine = get_engine(settings)
                     if engine.loading_stage:
-                        store.update(job_id, stage=engine.loading_stage, progress=round(i / n_parts * 100))
+                        io.report(stage=engine.loading_stage, progress=round(i / n_parts * 100))
                     engine.prepare()
 
-                store.update(job_id, stage=f"구간 {i + 1}/{n_parts} 변환 중", progress=round(i / n_parts * 100))
+                io.report(stage=f"구간 {i + 1}/{n_parts} 변환 중", progress=round(i / n_parts * 100))
                 wav.setpos(bounds[i])
                 pcm = wav.readframes(bounds[i + 1] - bounds[i])
                 audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
@@ -210,26 +270,18 @@ def transcribe_job(job_id: str, store: JobStore, settings: Settings) -> None:
 
                 segments = [{"start": round(seg["start"] + offset, 2), "end": round(seg["end"] + offset, 2), "text": seg["text"]} for seg in found]
                 write_json_atomic(part_path, segments)
-                store.update(job_id, progress=round((i + 1) / n_parts * 100))
+                io.report(progress=round((i + 1) / n_parts * 100))
 
         # 구간 결과 합치기
         segments = []
         for i in range(n_parts):
             segments.extend(json.loads((work / f"part_{i:03d}.json").read_text(encoding="utf-8")))
-        write_transcript(settings, job_id, segments, timed=True)
+        io.finish(segments, timed=True, stage="변환 완료")
         shutil.rmtree(work, ignore_errors=True)
-
-        store.update(job_id, status=JobStatus.COMPLETED, progress=None, stage="변환 완료", transcript_ready=True)
         log.info("변환 완료: %s (%.0f초, %d개 문장)", job_id, duration, len(segments))
 
     except TranscribeError as e:
-        store.update(job_id, status=JobStatus.FAILED, progress=None, stage=None, error_message=str(e))
+        io.fail(str(e))
     except Exception:
         log.exception("변환 중 예상하지 못한 오류: %s", job_id)
-        store.update(
-            job_id,
-            status=JobStatus.FAILED,
-            progress=None,
-            stage=None,
-            error_message="변환 중 오류가 발생했습니다. 다시 시도하면 완료된 구간부터 이어서 변환합니다.",
-        )
+        io.fail("변환 중 오류가 발생했습니다. 다시 시도하면 완료된 구간부터 이어서 변환합니다.")

@@ -21,6 +21,18 @@
 
 ## 작업
 
+### Mac 작업자 API (2026-11-03 통합 단계 5-3) — 회원이 아닌 작업자 열쇠
+
+인증: `Authorization: Bearer <MALMOA_WORKER_TOKEN>` (서버 `.env`에는 해시 `MALMOA_WORKER_TOKEN_HASH`만, 없으면 503, 틀리면 401 — 회원 토큰도 401). 작업을 바꾸는 요청에는 `X-Malmoa-Worker: <claim 때 보낸 값>` — 가져간 작업자가 아니면 409.
+
+| 요청 | 본문 | 응답 |
+|---|---|---|
+| `POST /api/worker/claim` | `{worker, tasks: ["transcribe"]}` | 200 `{jobId, task, source, fileName, storedName, sizeBytes}` / 204 없음. 끊긴 작업을 먼저 대기열로 돌리고, 원문이 이미 있는 작업은 서버가 바로 완료 |
+| `GET /api/worker/jobs/{id}/source` | — | 원본 파일 (스트리밍, 백엔드가 저장소에서 읽어 전달) |
+| `POST /api/worker/jobs/{id}/report` | `{start?, stage?, progress?, durationSec?}` (빈 본문 = 생존 신호만) | 204 |
+| `PUT /api/worker/jobs/{id}/transcript` | `{segments: [{start, end, text}] \| null, timed, stage}` | 204, 완료·대기열에서 뺌 |
+| `POST /api/worker/jobs/{id}/fail` | `{message}` | 204, 실패·대기열에서 뺌 |
+
 ### 저장소 직접 업로드 (2026-11-03 통합 단계 5-2, `MALMOA_FILES_BACKEND=s3`일 때)
 
 | 요청 | 본문 | 응답 | 오류 |

@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = 3  # 다른 서버가 넣은 작업을 확인하는 간격 (같은 서버에서 넣은 작업은 바로 가져간다)
     job_stale_seconds: int = 180  # 생존 신호가 이만큼 끊긴 작업은 다시 대기열로 (서버가 꺼졌거나 멈춤)
     job_max_attempts: int = 3  # 이만큼 끊기면 실패로 표시 (작업이 서버를 죽이는 경우 무한 반복 방지)
+    # Mac 작업자 API 열쇠의 SHA-256 해시 (통합 단계 5-3). 비우면 작업자 API 를 쓰지 않는다(503).
+    # 만들기: uv run python scripts/malmoa_worker.py new-token  → 열쇠는 Mac 에, 해시는 서버 .env 에
+    malmoa_worker_token_hash: str = ""
 
     # 일정 알람: 30초마다 확인해 Mac 알림 센터와 화면에 알린다 (테스트에서는 끈다)
     reminders_enabled: bool = True

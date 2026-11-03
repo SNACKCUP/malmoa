@@ -46,6 +46,7 @@ dev = [
     "ruff>=0.17.1",
 ]
 worker = [
+    "httpx>=0.28.1",
     "openai-whisper>=20250625",
     "pyobjc-framework-vision>=12.2.2 ; sys_platform == 'darwin'",
 ]
