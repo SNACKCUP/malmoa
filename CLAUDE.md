@@ -429,7 +429,8 @@ MAX_UPLOAD_MB=500
 
 ### 구조
 
-- 백엔드: FastAPI + SQLAlchemy + Alembic, Python 3.12 (`backend/`). 말모아 기능은 **`backend/app/features/` 아래에만** 둔다 (`shared`, `jobs`, `events`, `people`, `ai_settings`, `recorder`). 기능 안에서는 router → service → repository 방향으로만 import 하고 SQL은 repository에만 둔다. `tests/test_import_rules.py`가 지킨다.
+- 백엔드: FastAPI + SQLAlchemy + Alembic, Python 3.12 (`backend/`). 말모아 기능은 **`backend/app/features/malmoa/` 아래에만** 둔다 (`api/`, `services/`, `schemas/`, `config.py`, `db.py`, `deps.py`, `models.py`, `router.py`). 킷 밖 새 패키지는 `tests/test_import_rules.py`가 막는다. 새 코드는 router → service → repository 방향(SQL은 repository)을 따른다 — 옮겨 온 legacy 코드는 아직 아니다 (계획 문서 단계 1 결과).
+- 말모아 설정(`app/features/malmoa/config.py`)은 meerkit 과 같은 `backend/.env`를 읽는다. **meerkit 설정과 같은 이름의 필드를 만들지 않는다** — 이름이 같으면 meerkit 값을 읽어 버린다 (트러블 이슈 #33). 저장소는 `MALMOA_FILES_BACKEND`·`MALMOA_FILES_DIR`, S3 접속 정보만 meerkit 과 공유.
 - 프런트: Next.js 16 (`frontend/`). 말모아 화면은 `src/app/(service)/`, 말모아 컴포넌트는 `src/components/malmoa/`, 98 OS 부품은 `src/components/malmoa/ui/`.
 - DB: PostgreSQL 하나 (로컬은 `docker-compose.yml`의 db, `127.0.0.1:5433`). 스키마 변경은 Alembic 마이그레이션으로만.
 - 로그인·회원·역할: meerkit 그대로 (`app.auth.deps.get_current_user`, `app.core.principal.require_role`, 프런트 `@/meerkit`). 말모아는 회원 표를 따로 두지 않고 `users.id`(정수)를 FK로 쓴다.
@@ -451,5 +452,5 @@ MAX_UPLOAD_MB=500
 
 - legacy 말모아(3001·8010)는 새 앱 검증이 끝날 때까지 실제로 쓰는 앱이다. **3001을 시험 브라우저로 열지 않는다.** 새 앱 시험은 5181(화면)·8003(백엔드).
 - 3000 포트는 meerkit 패키지 소스(`~/Desktop/snackcup_meerkit/meerkit`) 화면이 쓰고 있을 수 있다. 끄지 않는다.
-- 테스트: `uv run python -m pytest` (`uv run pytest`는 트러블 이슈 #32처럼 다른 파이썬을 집을 수 있다). 저장소는 local·s3(moto) 두 모드. 결과는 통과·실패 수 그대로 보고한다.
+- 테스트 (`backend/`): `uv run pytest` (전체 = meerkit + 말모아), 말모아만 `uv run pytest tests/features/malmoa`, s3 모드는 앞에 `MALMOA_FILES_BACKEND=s3`. `.env`의 `FRONTEND_BASE_URL`이 3000 이 아니면 meerkit 소셜 로그인 테스트 11개가 실패한다 (트러블 이슈 #34, 앞에 `FRONTEND_BASE_URL=http://localhost:3000`). legacy 폴더에서는 `uv run python -m pytest` (#32). 결과는 통과·실패 수 그대로 보고한다.
 - 작업하면 `docs/`의 날짜 문서·진행표(`01-기획.md`)·기능명세·목차(`README.md`)를 함께 고친다.

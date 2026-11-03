@@ -4,6 +4,7 @@ from sqlalchemy import engine_from_config, pool
 
 import app.auth.models
 import app.codes.models
+import app.features.malmoa.models  # 말모아 표 (2026-11-03 통합, docs/2026-11-03-통합계획.md)
 import app.social.models
 import app.users.models  # noqa: F401
 from alembic import context

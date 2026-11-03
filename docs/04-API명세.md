@@ -1,5 +1,7 @@
 # 04. API 명세
 
+> **2026-11-03 통합 단계 1 이후:** 말모아 API 는 meerkit 백엔드와 같은 서버에 있다 (로컬 개발 8000, 시험 8003). 경로는 그대로(`/api/jobs` 등). 바뀐 것: 오류 응답이 meerkit 형식 `{"detail", "code", "request_id"}` (`detail` 문구는 그대로), 로그인은 같은 서버의 meerkit `/api/auth/*`, 토큰 검증도 meerkit 이 한다(탈퇴·정지 회원은 바로 401). 아래 기준 주소·로그인 설명은 통합 전 기준.
+
 - 기준 주소: `http://localhost:8010`. 실행 중이면 `http://localhost:8010/docs`에서 자동 문서(OpenAPI) 확인 가능
 - JSON 필드는 **camelCase** (`CamelModel`, 서버 내부는 snake_case)
 - 오류 응답은 항상 `{"detail": "한국어 메시지"}`. 요청 검증 실패도 422 + 같은 형식
