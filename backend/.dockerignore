@@ -9,5 +9,5 @@
 tests
 Dockerfile
 .dockerignore
-# 말모아 로컬 파일 저장소 (녹음·원문·회의록 = 개인정보). 배포는 R2 를 쓴다
+# 말모아 로컬 파일 저장소 (녹음·원문·회의록 = 개인정보). 배포는 S3 호환 저장소(Supabase Storage)를 쓴다
 storage
