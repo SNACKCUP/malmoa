@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, FileText, FileUp, FolderOpen, Mic, Settings, type LucideIcon } from 'lucide-react'
+import { CalendarDays, FileText, FileUp, FolderOpen, LogOut, Mic, Settings, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -13,6 +13,7 @@ import { useAuthStore } from '@/meerkit/auth/store'
 import { useRecorderBusy } from '@/stores/malmoa/recorderBusy'
 import { Brand } from './common'
 import { LoginScreen, SessionLostOverlay } from './login-screen'
+import { MeWindow } from './me-window'
 import { PendingApproval, isMalmoaApproved } from './pending-approval'
 import { RecorderProvider, useRecorderContext } from './recorder-context'
 import { ReminderToasts } from './reminder-toasts'
@@ -160,13 +161,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   use(browser('녹음기 설정이 브라우저 저장소에 있어 서버에서 그릴 수 없습니다.'))
   const { isAuthenticated, isLoading, user } = useAuth()
   const recorderBusy = useRecorderBusy((s) => s.busy)
+  const pathname = usePathname()
   useClearDataOnSignOut()
 
   if (!recorderBusy) {
     if (isLoading) return <ShellFallback message="로그인 확인 중…" />
     if (!isAuthenticated) return <LoginScreen />
     // 관리자가 사용 승인(OWNER)을 주기 전 (통합 단계 5-1). 서버도 403 MALMOA_NOT_APPROVED 로 막는다
-    if (user && !isMalmoaApproved(user)) return <PendingApproval user={user} />
+    // 내 정보(프로필·암호·탈퇴)는 승인 전에도 연다 — 바탕화면 없이 (바탕화면은 말모아 API 를 부른다)
+    if (user && !isMalmoaApproved(user)) return pathname === '/me' ? <MeWindow standalone /> : <PendingApproval user={user} />
   }
   return (
     <RecorderProvider>
@@ -322,6 +325,19 @@ function Desktop({ children }: { children: ReactNode }) {
               <Link href="/me" className="max-w-32 truncate bg-white px-1 text-[11px] w98-in hover:underline" title={`내 정보: ${user.name} (${user.email})`}>
                 👤 {user.name}
               </Link>
+            )}
+            {user && (
+              <button
+                type="button"
+                onClick={signOut}
+                disabled={logout.isPending}
+                title={`로그아웃 (${user.name})`}
+                className="flex h-[22px] shrink-0 items-center gap-1 px-1.5 text-[11px] text-[#b00000] outline-none w98-out active:w98-pressed focus-visible:outline-1 focus-visible:outline-dotted focus-visible:-outline-offset-4 disabled:text-shade"
+              >
+                <LogOut className="size-3" aria-hidden />
+                <span className="hidden sm:inline">로그아웃</span>
+                <span className="sr-only sm:hidden">로그아웃</span>
+              </button>
             )}
             <span className="hidden shrink-0 bg-white px-1 font-mono text-[10px] font-bold text-[#006a6a] uppercase w98-in sm:inline">
               LOCAL: {health.data ? `WHISPER-${health.data.whisperModel}` : health.isError ? '서버 연결 안 됨' : '확인 중'}

@@ -195,3 +195,27 @@
   transform-origin: center;
   animation: malmoa-eq 0.9s ease-in-out infinite;
 }
+
+/* 로그인·내 정보 대화상자: 바탕화면 위에 살짝 떠서 천천히 오르내린다 (2026-11-04). 동작 줄이기 설정이면 멈춤 */
+@keyframes malmoa-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.malmoa-float {
+  animation: malmoa-float 6s ease-in-out infinite;
+}
+/* 제목 막대를 끄는 동안은 멈춘다 (Tailwind paused 는 층(layer) 안이라 위 animation 줄에 진다) */
+.malmoa-float.paused {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .malmoa-eq,
+  .malmoa-float {
+    animation: none;
+  }
+}
