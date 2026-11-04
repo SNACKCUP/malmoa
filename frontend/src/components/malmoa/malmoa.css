@@ -1,0 +1,221 @@
+/* ── 말모아 98 OS 스타일 (legacy frontend/src/app/globals.css 에서 옮김, 2026-11-03 통합 단계 3) ──
+   globals.css 가 불러온다. meerkit 화면을 바꾸지 않도록 색·모서리·글꼴은 말모아 화면(.malmoa-98 틀)이 있을 때만 켠다:
+   - meerkit 은 bg-background 같은 이름을 --mk-* 에 묶는다 (meerkit/styles/tokens.css). 여기서 같은 이름을
+     "--m98-* 가 있으면 그 값, 없으면 meerkit 값"으로 다시 묶는다. --m98-* 는 .malmoa-98 이 있는 동안만 정의된다.
+   - :root:has(.malmoa-98) 로 정의하므로 body 에 따로 그려지는 대화상자·메뉴(포털)도 98 색이 된다.
+   - w98-* 유틸리티·malmoa-eq 는 클래스를 붙인 곳에만 쓰이므로 범위를 두지 않는다. */
+
+@theme inline {
+  /* meerkit 과 이름이 같은 것: 말모아 화면 밖에서는 meerkit 값 그대로 */
+  --color-background: var(--m98-background, var(--mk-background));
+  --color-foreground: var(--m98-foreground, var(--mk-foreground));
+  --color-card: var(--m98-card, var(--mk-card));
+  --color-card-foreground: var(--m98-foreground, var(--mk-foreground));
+  --color-popover: var(--m98-card, var(--mk-surface));
+  --color-popover-foreground: var(--m98-foreground, var(--mk-foreground));
+  --color-primary: var(--m98-primary, var(--mk-primary));
+  --color-primary-foreground: var(--m98-primary-foreground, var(--mk-primary-foreground));
+  --color-brand: var(--m98-primary, var(--mk-brand));
+  --color-muted: var(--m98-muted, var(--mk-muted));
+  --color-muted-foreground: var(--m98-muted-foreground, var(--mk-muted-foreground));
+  --color-accent: var(--m98-primary, var(--mk-accent));
+  --color-accent-foreground: var(--m98-primary-foreground, var(--mk-foreground));
+  --color-border: var(--m98-border, var(--mk-border));
+  --color-input: var(--m98-border, var(--mk-border));
+  --color-ring: var(--m98-ring, var(--mk-brand));
+  --color-destructive: var(--m98-destructive, var(--mk-destructive));
+  --radius-sm: var(--m98-radius, calc(var(--mk-radius) - 8px));
+  --radius-md: var(--m98-radius, calc(var(--mk-radius) - 4px));
+  --radius-lg: var(--m98-radius, var(--mk-radius));
+  --radius-xl: var(--m98-radius, calc(var(--mk-radius) + 4px));
+  --radius-2xl: var(--m98-radius, calc(var(--mk-radius) + 8px));
+  --radius-3xl: var(--m98-radius, calc(var(--mk-radius) + 16px));
+  --font-sans: var(--m98-font-sans, "Pretendard Variable", "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif);
+  --font-mono: var(--m98-font-mono, ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace);
+
+  /* 말모아에만 있는 것 (Windows 98 16색 계열) */
+  --font-heading: var(--font-space-grotesk, "Pretendard Variable"), "Pretendard Variable", Pretendard, sans-serif;
+  /* 예전 이름(font-pixel)은 본문 글꼴과 같게 둔다: 버튼·메뉴는 시안처럼 Public Sans */
+  --font-pixel: var(--font-sans);
+  --color-secondary: #c0c0c0;
+  --color-secondary-foreground: #000000;
+  --color-brand-soft: #dcdcf0;
+  --color-brand-deep: #000080;
+  --color-success: #008000;
+  --color-success-ink: #006000;
+  --color-success-soft: #d6ecd6;
+  --color-warning: #c08000;
+  --color-warning-ink: #6b5200;
+  --color-warning-soft: #ffffe1;
+  --color-error: #c00000;
+  --color-error-ink: #b00000;
+  --color-error-soft: #f2d6d6;
+  /* 98 입체 테두리용 회색 */
+  --color-face: #c0c0c0;
+  --color-light: #dfdfdf;
+  --color-shade: #808080;
+  --color-desktop: #008080;
+}
+
+/* 말모아 색상 체계: 청록 바탕화면 + 회색 창 + 남색 제목 막대. 모서리는 모두 각지게 */
+:root:has(.malmoa-98),
+.malmoa-98 {
+  --m98-background: #c0c0c0;
+  --m98-foreground: #000000;
+  --m98-card: #c0c0c0;
+  --m98-primary: #000080;
+  --m98-primary-foreground: #ffffff;
+  --m98-muted: #dfdfdf;
+  --m98-muted-foreground: #404040;
+  --m98-destructive: #b00000;
+  --m98-border: #808080;
+  --m98-ring: #000000;
+  --m98-radius: 0rem;
+  --title-a: #000080;
+  --title-b: #006a6a;
+  color-scheme: light;
+}
+/* 글꼴 변수(next/font)는 (service)/layout 의 .malmoa-98 에 붙는다 — 그 안에서 다시 정해야 실제 글꼴을 가리킨다 */
+.malmoa-98 {
+  --m98-font-sans: var(--font-public-sans), "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --m98-font-mono: var(--font-space-mono), "Pretendard Variable", Pretendard, ui-monospace, monospace;
+}
+
+/* shadcn/tailwind.css 의 상태 변형 중 말모아 부품이 쓰는 것 (shadcn 패키지 전체를 들이지 않으려고 옮김) */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+/* ── 말모아 98 OS (stitch_ 시안): 청록 바탕화면, 회색 입체 테두리, 남색→청록 제목 막대 ── */
+:root:has(.malmoa-98) body {
+  background-color: var(--color-desktop);
+}
+
+/* 튀어나온 창·단추 */
+@utility w98-out {
+  background-color: var(--color-face);
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+/* 눌린 단추 */
+@utility w98-pressed {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+/* 움푹 들어간 입력칸·진행 막대 */
+@utility w98-in {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+/* 얕게 들어간 칸(상태 줄 등) */
+@utility w98-flat {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+/* 창 제목 막대: 남색 → 하늘색 */
+@utility w98-title {
+  background-image: linear-gradient(90deg, var(--title-a), var(--title-b));
+  color: #fff;
+}
+/* 바탕화면 위에 바로 놓이는 글자(아이콘 이름표 느낌) */
+@utility w98-desk-text {
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+}
+/* 점선 초점 상자 */
+@utility w98-focus {
+  &:focus-visible {
+    outline: 1px dotted #000;
+    outline-offset: -4px;
+  }
+}
+/* 선택된 메뉴(눌린 채 망점 무늬) */
+@utility w98-checked {
+  background-image: repeating-conic-gradient(#fff 0% 25%, #c0c0c0 0% 50%);
+  background-size: 2px 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+/* 그룹 상자(fieldset): 새긴 듯한 테두리 */
+@utility w98-group {
+  border: 1px solid #808080;
+  box-shadow: 1px 1px 0 #fff, inset 1px 1px 0 #fff;
+}
+
+/* 토스트 알림: 회색 대화상자 */
+[data-sonner-toast].w98-toast {
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 2px 2px 0 rgba(0, 0, 0, 0.5);
+  border: 0;
+}
+[data-sonner-toast].w98-toast [data-close-button] {
+  border-radius: 0;
+  background: var(--color-face);
+  border: 1px solid #000;
+  color: #000;
+}
+
+/* 알림 상자(루트의 meerkit Toaster)도 말모아 화면에 있는 동안은 98 대화상자로 */
+:root:has(.malmoa-98) [data-sonner-toast][data-styled="true"] {
+  border-radius: 0;
+  border: 0;
+  background: var(--color-face);
+  color: #000;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root:has(.malmoa-98) [data-sonner-toast][data-styled="true"] [data-close-button] {
+  border-radius: 0;
+  background: var(--color-face);
+  border: 1px solid #000;
+  color: #000;
+}
+
+/* 스크롤바도 회색 입체로 */
+:root:has(.malmoa-98) {
+  scrollbar-color: #c0c0c0 #dfdfdf;
+}
+
+/* 녹음 중 로고 막대: 소리에 맞춰 움직이듯 오르내린다 */
+@keyframes malmoa-eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.malmoa-eq {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: malmoa-eq 0.9s ease-in-out infinite;
+}
+
+/* 로그인·내 정보 대화상자: 바탕화면 위에 살짝 떠서 천천히 오르내린다 (2026-11-04). 동작 줄이기 설정이면 멈춤 */
+@keyframes malmoa-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.malmoa-float {
+  animation: malmoa-float 6s ease-in-out infinite;
+}
+/* 제목 막대를 끄는 동안은 멈춘다 (Tailwind paused 는 층(layer) 안이라 위 animation 줄에 진다) */
+.malmoa-float.paused {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .malmoa-eq,
+  .malmoa-float {
+    animation: none;
+  }
+}

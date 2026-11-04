@@ -1,0 +1,39 @@
+# 운영 DB 에 첫 관리자(MASTER) 계정을 한 번 만듭니다. 이미 있으면 건너뜁니다 (app.users.seed).
+# Actions 화면에서 직접 실행합니다. 비밀번호는 로컬 기본값을 쓰지 않고 새로 정해 Secret 에만 넣습니다.
+#
+# 준비 (Settings → Environments → production):
+#   - Secret   PROD_DATABASE_URL     운영 DB 주소 (deploy 와 같은 값)
+#   - Secret   SEED_ADMIN_PASSWORD   관리자 비밀번호 (만든 뒤에는 Secret 을 지워도 됨)
+#   - Variable SEED_ADMIN_USER_ID    로그인 아이디 (예: admin)
+#   - Variable SEED_ADMIN_EMAIL      관리자 실제 이메일 (비밀번호 찾기 메일을 받을 주소)
+name: seed-admin
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      SEED_ADMIN_USER_ID: ${{ vars.SEED_ADMIN_USER_ID }}
+      SEED_ADMIN_EMAIL: ${{ vars.SEED_ADMIN_EMAIL }}
+      JWT_SECRET_KEY: seed-job-${{ github.run_id }}-${{ github.run_attempt }}-unused
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check settings
+        run: |
+          for name in DATABASE_URL SEED_ADMIN_PASSWORD SEED_ADMIN_USER_ID SEED_ADMIN_EMAIL; do
+            if [ -z "$(printenv $name)" ]; then echo "::error::$name 가 비어 있습니다 (docs/deployment.md 참고)"; exit 1; fi
+          done
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --no-dev
+      - run: uv run python -m app.users.seed

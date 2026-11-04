@@ -1,0 +1,48 @@
+name: cli-ci
+on:
+  push:
+    branches: [main]
+    paths: ["packages/**", ".github/workflows/cli-ci.yml"]
+  pull_request:
+    paths: ["packages/**", ".github/workflows/cli-ci.yml"]
+
+# CLI(packages/meerkit)를 Linux와 Windows에서 돌려 본다.
+# GitHub의 Windows 러너에는 Linux 컨테이너(Docker)가 없어서 setup/start/db 는 여기서 돌리지 않는다.
+jobs:
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/package-lock.json
+      - run: npm ci
+      - run: npm test -w @snackcup/meerkit
+      - name: Smoke - 템플릿 만들기
+        run: npm run sync-template -w @snackcup/meerkit
+      - name: Smoke - 명령 실행
+        run: |
+          CLI="$PWD/meerkit/bin/meerkit.js"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
+          node "$CLI" --version
+          node "$CLI" --help
+          node "$CLI" init smoke-app
+          cd smoke-app
+          test -f .meerkit/manifest.json
+          node "$CLI" update | tee update.out
+          grep -q "이미 최신" update.out
+          node "$CLI" add feature demo_note --dry-run
+          node "$CLI" env check || true   # .env 가 없으면 점검할 수 없다는 안내가 나온다
+          node "$CLI" status || true      # 세팅 전이라 안내가 나온다
+          node "$CLI" check || true       # Docker 등이 없을 수 있다

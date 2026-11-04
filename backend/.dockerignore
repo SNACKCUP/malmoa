@@ -1,0 +1,11 @@
+# 키·로컬 환경·캐시가 이미지에 들어가지 않게 합니다
+.env
+.env.*
+!.env.example
+.venv
+**/__pycache__
+.pytest_cache
+.ruff_cache
+tests
+Dockerfile
+.dockerignore
