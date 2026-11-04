@@ -14,13 +14,16 @@ WORKDIR /app
 
 # 의존성만 먼저 설치해 코드가 바뀌어도 이 층은 캐시로 재사용합니다
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+# worker 그룹(Whisper·Apple Vision)은 Mac 작업자 전용이라 서버 이미지에 넣지 않습니다 (말모아)
+RUN uv sync --locked --no-dev --no-group worker --no-install-project
 
 COPY . .
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-dev --no-group worker
 
 # root 가 아닌 사용자로 실행합니다
 RUN useradd --create-home --uid 10001 app
+# 말모아 임시 작업 폴더(storage/work)를 앱 사용자가 만들 수 있게 빈 폴더를 둡니다. 녹음 등은 S3 호환 저장소 (말모아)
+RUN mkdir -p /app/storage && chown app:app /app/storage
 USER app
 
 ENV PATH="/app/.venv/bin:$PATH" \

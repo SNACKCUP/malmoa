@@ -1,3 +1,7 @@
+import sys
+
+import pytest
+
 from app.features.malmoa.services.file_store import upload_key
 from features.malmoa.conftest import auth, files, register
 
@@ -58,6 +62,8 @@ def test_minutes_without_api_key_is_explained(client):
     assert "먼저 음성을 텍스트로 변환" in res.json()["detail"]
 
 
+# Linux(GitHub CI·배포 서버)에서는 사진 작업이 일부러 NOT_ON_MAC 으로 실패한다 — 그쪽은 test_edit_export.py 가 본다
+@pytest.mark.skipif(sys.platform != "darwin", reason="Apple Vision 은 macOS 전용")
 def test_whiteboard_photo_is_read_as_text(client):
     """화이트보드 사진: 올리면 사진 작업이 되고, 글자 읽기 결과가 원문으로 저장된다 (Apple Vision, macOS 전용)"""
     import time
