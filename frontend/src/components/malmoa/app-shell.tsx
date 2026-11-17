@@ -80,35 +80,55 @@ function Clock() {
   )
 }
 
-/** 메뉴 막대의 내림 메뉴 하나. 바깥을 누르거나 Esc로 닫힌다 */
+const MENU_W = 176 // 내림 메뉴 최소 폭 (min-w-44)
+
+/**
+ * 메뉴 막대의 내림 메뉴 하나. 바깥을 누르거나 Esc로 닫힌다.
+ * 펼친 메뉴는 화면 기준(fixed)으로 띄운다 — 좁은 화면에서 위 메뉴 막대가 옆으로 밀리게(overflow-x-auto) 되어 있어
+ * 막대 안에 두면 잘려서 항목을 누를 수 없었다 (2026-11-17, 아이폰). 화면 오른쪽 밖으로 나가지 않게 왼쪽 위치를 당긴다.
+ */
 export function Menu({ label, hot, active, items }: { label: string; hot: string; active?: boolean; items: { label: string; href?: string; onSelect?: () => void }[] }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
     const close = (e: Event) => {
       if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
     }
+    // 화면 기준으로 띄웠으므로 화면이 움직이면 단추와 떨어진다 → 닫는다
+    const dismiss = () => setOpen(false)
     document.addEventListener('pointerdown', close)
     document.addEventListener('keydown', close)
+    window.addEventListener('resize', dismiss)
+    window.addEventListener('scroll', dismiss, true)
     return () => {
       document.removeEventListener('pointerdown', close)
       document.removeEventListener('keydown', close)
+      window.removeEventListener('resize', dismiss)
+      window.removeEventListener('scroll', dismiss, true)
     }
   }, [open])
+  const toggle = () => {
+    if (!open && ref.current) {
+      const b = ref.current.getBoundingClientRect()
+      setPos({ top: b.bottom + 2, left: Math.max(4, Math.min(b.left, window.innerWidth - MENU_W - 4)) })
+    }
+    setOpen((v) => !v)
+  }
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className={cn('px-1.5 py-0.5 text-[11px] whitespace-nowrap outline-none hover:bg-[#000080] hover:text-white focus-visible:bg-[#000080] focus-visible:text-white', (open || active) && 'bg-[#000080] text-white')}
       >
         {label}(<u>{hot}</u>)
       </button>
       {open && (
-        <ul role="menu" className="absolute top-full left-0 z-50 mt-0.5 min-w-44 p-[3px] text-[12px] shadow-[2px_2px_0_rgba(0,0,0,0.5)] w98-out">
+        <ul role="menu" style={pos} className="fixed z-50 min-w-44 p-[3px] text-[12px] shadow-[2px_2px_0_rgba(0,0,0,0.5)] w98-out">
           {items.map((it) => (
             <li key={it.label} role="none">
               {it.href ? (
@@ -322,8 +342,14 @@ function Desktop({ children }: { children: ReactNode }) {
           </div>
           <div className="flex min-w-0 shrink-0 items-center gap-1">
             {user && (
-              <Link href="/me" className="max-w-32 truncate bg-white px-1 text-[11px] w98-in hover:underline" title={`내 정보: ${user.name} (${user.email})`}>
-                👤 {user.name}
+              <Link
+                href="/me"
+                className="max-w-32 truncate bg-white px-1 text-[11px] w98-in hover:underline"
+                title={`내 정보: ${user.name} (${user.email})`}
+                aria-label={`내 정보: ${user.name}`}
+              >
+                {/* 좁은 화면은 메뉴 자리를 위해 이름을 숨기고 👤 만 */}
+                👤<span className="hidden sm:inline"> {user.name}</span>
               </Link>
             )}
             {user && (
