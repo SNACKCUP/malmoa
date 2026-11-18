@@ -15,7 +15,7 @@ import {
 } from '@/components/malmoa/ui/alert-dialog'
 import { Checkbox } from '@/components/malmoa/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/malmoa/ui/select'
-import { useHealth, useJobCreated } from '@/hooks/malmoa/queries'
+import { useDraftEventGuard, useHealth, useJobCreated } from '@/hooks/malmoa/queries'
 import { CHUNK_INTERVAL_MS } from '@/hooks/malmoa/useRecorder'
 import { uploadAndTranscribe } from '@/lib/malmoa/api'
 import { fileStamp, formatBytes, formatClock, formatDuration } from '@/lib/malmoa/format'
@@ -136,6 +136,7 @@ export function RecorderPanel() {
   const onJobCreated = useJobCreated()
   const { deviceId, roomMode, setDeviceId, setRoomMode } = useRecorderPrefs()
   const draft = useMeetingDraft()
+  useDraftEventGuard()
   const deviceSelectId = useId()
   const roomModeId = useId()
   const [sending, setSending] = useState<number | null>(null)

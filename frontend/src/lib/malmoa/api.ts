@@ -135,6 +135,8 @@ export const listEvents = (from: Date, to: Date) =>
 
 export const addEvent = (e: EventInput) => json<CalendarEvent>('/api/events', jsonBody('POST', e))
 
+export const getEvent = (id: string) => json<CalendarEvent>(`/api/events/${id}`)
+
 export const updateEvent = (id: string, e: EventInput) => json<CalendarEvent>(`/api/events/${id}`, jsonBody('PUT', e))
 
 /** since 이후에 울린 내 알람 */

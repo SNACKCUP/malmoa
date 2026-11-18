@@ -1,8 +1,10 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import * as api from '@/lib/malmoa/api'
 import type { Attendee, EventInput, Job } from '@/lib/malmoa/types'
+import { useMeetingDraft } from '@/stores/malmoa/meetingDraft'
 
 export const keys = {
   jobs: ['jobs'] as const,
@@ -188,7 +190,23 @@ export function useSetCalendarSync() {
 
 export function useDeleteEvent() {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: api.deleteEvent, onSuccess: () => qc.invalidateQueries({ queryKey: keys.events }) })
+  return useMutation({
+    mutationFn: api.deleteEvent,
+    onSuccess: (_, id) => {
+      useMeetingDraft.getState().dropEvent(id) // 녹음 중인 일정을 지웠으면 녹음기의 '자동 녹음' 연결도 푼다 (트러블 #52)
+      return qc.invalidateQueries({ queryKey: keys.events })
+    },
+  })
+}
+
+/** 녹음 초안에 연결된 일정이 아직 있는지 — 다른 기기에서 지웠으면(404) 연결을 푼다 (트러블 #52) */
+export function useDraftEventGuard() {
+  const id = useMeetingDraft((s) => s.event?.id)
+  const query = useQuery({ queryKey: [...keys.events, 'draft', id], queryFn: () => api.getEvent(id!), enabled: !!id, retry: false })
+  const gone = query.error instanceof api.ApiError && query.error.status === 404
+  useEffect(() => {
+    if (gone && id) useMeetingDraft.getState().dropEvent(id)
+  }, [gone, id])
 }
 
 /** AI 회의록 연결 (설정 화면 저장값 → 없으면 backend/.env) */
