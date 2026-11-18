@@ -393,9 +393,14 @@ def start_transcribe(request: Request, user: CurrentUser, job_id: str) -> Job:
     job = _get_job(request, job_id, user)
     if job.transcript_ready:
         return job
-    if job.source != "image" and not speech_engines.enabled(get_settings()):
-        raise HTTPException(503, speech_engines.DISABLED_MESSAGE)
-    queued = _store(request).enqueue(job_id, "transcribe", status=JobStatus.QUEUED, progress=0, stage="변환 순서 대기 중", error_message=None)
+    settings = get_settings()
+    stage = "변환 순서 대기 중"
+    if job.source != "image" and not speech_engines.enabled(settings):
+        # TRANSCRIBER=none: 작업자 열쇠가 있으면 대기열에 넣어 Mac 작업자가 가져가게 한다 (트러블 #50)
+        if not speech_engines.accepts_requests(settings):
+            raise HTTPException(503, speech_engines.DISABLED_MESSAGE)
+        stage = speech_engines.MAC_WORKER_STAGE
+    queued = _store(request).enqueue(job_id, "transcribe", status=JobStatus.QUEUED, progress=0, stage=stage, error_message=None)
     if queued is None:
         raise HTTPException(409, "이미 처리 중인 작업입니다.")
     _worker(request).wake()
