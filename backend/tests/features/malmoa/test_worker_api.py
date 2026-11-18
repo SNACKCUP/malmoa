@@ -183,3 +183,18 @@ def test_worker_program_needs_no_db_or_secrets(tmp_path):
     out = subprocess.run([sys.executable, "-c", code], cwd=tmp_path, env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"}, capture_output=True, text=True, check=False)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "clean"
+
+
+# ── 배포 서버 (TRANSCRIBER=none) + Mac 작업자 (트러블 #50) ──
+
+
+def test_server_without_whisper_queues_for_mac_worker(api, monkeypatch):
+    """배포 서버는 변환하지 않지만 작업자 열쇠가 있으면 요청을 받아 Mac 작업자에게 넘긴다 (전에는 503 이라 대기열에 들어가지 않았다)"""
+    monkeypatch.setattr(get_settings(), "transcriber", "none")
+    job_id = upload(api, 3)
+    res = api.post(f"/api/jobs/{job_id}/transcribe")
+    assert res.status_code == 202
+    assert res.json()["stage"] == "Mac 작업자 대기 중 (Mac 이 켜져 있어야 변환됩니다)"
+    got = claim(api)
+    assert got.status_code == 200
+    assert got.json()["jobId"] == job_id

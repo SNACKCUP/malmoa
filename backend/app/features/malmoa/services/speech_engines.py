@@ -95,6 +95,15 @@ def enabled(settings: Settings) -> bool:
     return settings.transcriber != DISABLED
 
 
+def accepts_requests(settings: Settings) -> bool:
+    """변환 요청을 받을지 — 이 서버가 변환하거나, 서버는 안 해도 Mac 작업자가 가져가 변환한다(작업자 열쇠가 설정됨)"""
+    return enabled(settings) or bool(settings.malmoa_worker_token_hash.strip())
+
+
+# 이 서버는 변환하지 않고 Mac 작업자를 기다리는 동안 화면에 보여 줄 단계 문구
+MAC_WORKER_STAGE = "Mac 작업자 대기 중 (Mac 이 켜져 있어야 변환됩니다)"
+
+
 def get_engine(settings: Settings) -> SpeechEngine:
     """설정의 엔진. TRANSCRIBER=none 이면 호출하지 않는다 (enabled 로 먼저 확인)"""
     return ENGINES[settings.transcriber](settings)

@@ -46,6 +46,7 @@ def test_local_whisper_passes_options_and_drops_blank_text(monkeypatch):
 @pytest.fixture
 def transcriber_off(monkeypatch):
     monkeypatch.setattr(get_settings(), "transcriber", "none")
+    monkeypatch.setattr(get_settings(), "malmoa_worker_token_hash", "")  # 작업자 열쇠가 있으면 Mac 작업자에게 넘긴다 (test_worker_api)
 
 
 def test_off_rejects_audio_transcribe_request(client, transcriber_off):

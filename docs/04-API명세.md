@@ -16,7 +16,7 @@
 { "status": "ok", "database": "ok", "transcriber": "local_whisper", "whisperModel": "small", "ffmpeg": true, "llmConfigured": false, "llmModel": null, "maxUploadMb": 500 }
 ```
 `database`(2026-11-03): DB 에 `select 1`을 해 본다. 닿지 않으면 **503** `{"detail": "DB에 연결할 수 없습니다."}`. 외부 cron 이 이 주소로 무료 서버를 깨운다 (`2026-11-03-DB와작업처리.md`).
-`transcriber`(2026-11-03): 음성 변환 방식 `local_whisper` | `none`. `none`이면 음성 작업의 `POST /api/jobs/{id}/transcribe`가 **503** `{"detail": "이 서버에서는 음성 변환을 하지 않습니다. (TRANSCRIBER=none)"}` (사진 작업은 그대로 202).
+`transcriber`(2026-11-03): 음성 변환 방식 `local_whisper` | `none`. `none`이면 음성 작업의 `POST /api/jobs/{id}/transcribe`가 **503** `{"detail": "이 서버에서는 음성 변환을 하지 않습니다. (TRANSCRIBER=none)"}` (사진 작업은 그대로 202). 단 서버에 Mac 작업자 열쇠(`MALMOA_WORKER_TOKEN_HASH`)가 있으면 202 로 받아 대기열에 넣고 단계 문구 "Mac 작업자 대기 중 (Mac 이 켜져 있어야 변환됩니다)" — Mac 작업자가 `/api/worker/claim`으로 가져간다 (2026-11-18, 트러블 #50).
 `llmConfigured`·`llmModel`은 `.env` 기준이다 (사용자와 상관없는 상태 확인이라 사용자별 설정은 넣지 않음). 화면은 `GET /api/settings/llm`을 쓴다.
 
 ## 작업
