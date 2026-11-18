@@ -10,6 +10,8 @@ interface MeetingDraft {
   event: { id: string; title: string } | null
   setAttendees: (attendees: Attendee[]) => void
   startFromEvent: (event: { id: string; title: string }, attendees: Attendee[]) => void
+  /** 그 일정이 지워졌을 때: 일정 연결만 푼다 (참석자는 남김) */
+  dropEvent: (id: string) => void
   clear: () => void
 }
 
@@ -19,11 +21,14 @@ interface MeetingDraft {
  */
 export const useMeetingDraft = create<MeetingDraft>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       attendees: [],
       event: null,
       setAttendees: (attendees) => set({ attendees }),
       startFromEvent: (event, attendees) => set({ event, attendees }),
+      dropEvent: (id) => {
+        if (get().event?.id === id) set({ event: null })
+      },
       clear: () => set({ attendees: [], event: null }),
     }),
     { name: 'malmoa-meeting-draft', storage: createJSONStorage(() => localStorage) },
