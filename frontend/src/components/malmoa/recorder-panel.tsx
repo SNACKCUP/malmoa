@@ -34,9 +34,10 @@ const DEFAULT_DEVICE = 'default'
 const SENT_KEY = 'malmoa-recorder-sent-job'
 const LEDS = 20
 // 녹음 조작 단추: 시작·일시정지·재개·종료는 같은 큰 크기, 모니터링·저장·초기화는 작게
-const BIG =
-  'flex h-12 w-full items-center justify-center gap-1.5 px-2 text-[15px] font-bold whitespace-nowrap outline-none w98-out active:w98-pressed disabled:font-normal disabled:text-shade'
-const SMALL = 'flex h-7 items-center gap-1 px-2 text-[11px] whitespace-nowrap outline-none w98-out active:w98-pressed disabled:text-shade'
+// 꺼진 단추: 아이폰 Safari 가 한 번 더 흐리게 그려 회색 바탕에서 안 보였다 (2026-11-18, 아이폰 X) — 흐림을 막고 98처럼 회색 글자에 흰 그림자
+const OFF = 'disabled:text-shade disabled:opacity-100 disabled:[-webkit-text-fill-color:currentColor] disabled:[text-shadow:1px_1px_#fff]'
+const BIG = `flex h-12 w-full items-center justify-center gap-1.5 px-2 text-[15px] font-bold whitespace-nowrap outline-none w98-out active:w98-pressed disabled:font-normal ${OFF}`
+const SMALL = `flex h-7 items-center gap-1 px-2 text-[11px] whitespace-nowrap outline-none w98-out active:w98-pressed ${OFF}`
 
 /** MediaRecorder가 만든 webm은 길이 정보가 없어 재생바가 동작하지 않는다 — 끝으로 한 번 이동해 길이를 계산시킨다. */
 function fixDuration(e: SyntheticEvent<HTMLAudioElement>) {
@@ -364,7 +365,8 @@ export function RecorderPanel() {
 
           {/* 파형 + 시간·레벨 */}
           <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_410px]">
-            <div className="relative flex min-h-56 flex-col bg-[#000e01] p-1 font-mono text-[11px] text-[#00e639] w98-in">
+            {/* 휴대폰은 파형을 낮게 — 녹음 단추가 첫 화면 가까이 오게 */}
+            <div className="relative flex min-h-32 flex-col bg-[#000e01] sm:min-h-56 p-1 font-mono text-[11px] text-[#00e639] w98-in">
               <div className="flex flex-wrap justify-between gap-2 px-1">
                 <span className="flex items-center gap-1.5">
                   <span className={cn('size-2', active ? 'bg-[#00e639]' : 'bg-[#00530e]')} />
@@ -451,7 +453,7 @@ export function RecorderPanel() {
               type="button"
               disabled={!stopped || sending != null}
               onClick={sendToServer}
-              className="flex h-full min-h-14 w-full items-center justify-center gap-2 bg-[#000080] px-3 text-[17px] font-bold text-white outline outline-1 -outline-offset-1 outline-black shadow-[inset_1px_1px_#bfc2ff,inset_-1px_-1px_#000] active:shadow-[inset_1px_1px_#000,inset_-1px_-1px_#bfc2ff] disabled:bg-[#808080] disabled:text-[#dfdfdf]"
+              className="flex h-full min-h-14 w-full items-center justify-center gap-2 bg-[#000080] px-3 text-[17px] font-bold text-white outline outline-1 -outline-offset-1 outline-black shadow-[inset_1px_1px_#bfc2ff,inset_-1px_-1px_#000] active:shadow-[inset_1px_1px_#000,inset_-1px_-1px_#bfc2ff] disabled:bg-[#808080] disabled:text-[#dfdfdf] disabled:opacity-100 disabled:[-webkit-text-fill-color:currentColor]"
             >
               <span aria-hidden>🚀</span>
               {sending == null
