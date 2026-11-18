@@ -34,7 +34,7 @@ const DEFAULT_DEVICE = 'default'
 const SENT_KEY = 'malmoa-recorder-sent-job'
 const LEDS = 20
 // 녹음 조작 단추: 시작·일시정지·재개·종료는 같은 큰 크기, 모니터링·저장·초기화는 작게
-// 꺼진 단추: 아이폰 Safari 가 한 번 더 흐리게 그려 회색 바탕에서 안 보였다 (2026-11-18, 아이폰 X) — 흐림을 막고 98처럼 회색 글자에 흰 그림자
+// 꺼진 단추: 아이폰 WebKit(Safari·크롬 모두)이 한 번 더 흐리게 그려 회색 바탕에서 안 보였다 (2026-11-18, 아이폰 X) — 흐림을 막고 98처럼 회색 글자에 흰 그림자
 const OFF = 'disabled:text-shade disabled:opacity-100 disabled:[-webkit-text-fill-color:currentColor] disabled:[text-shadow:1px_1px_#fff]'
 const BIG = `flex h-12 w-full items-center justify-center gap-1.5 px-2 text-[15px] font-bold whitespace-nowrap outline-none w98-out active:w98-pressed disabled:font-normal ${OFF}`
 const SMALL = `flex h-7 items-center gap-1 px-2 text-[11px] whitespace-nowrap outline-none w98-out active:w98-pressed ${OFF}`
